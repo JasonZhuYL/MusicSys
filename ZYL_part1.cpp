@@ -104,14 +104,15 @@ void setRow(uint8_t rowIdx) {
   digitalWrite(REN_PIN,HIGH);
 }
 
+
 uint8_t readCols(){
-  uint8_t c0 = digitalRead(C0_PIN);
-  uint8_t c1 = digitalRead(C1_PIN);
-  uint8_t c2 = digitalRead(C2_PIN);
-  uint8_t c3 = digitalRead(C3_PIN);
-  uint8_t cont = (c3<<3)|(c2<<2)|(c1<1)|c0;
-  // Serial.println(cont);
-  return cont;
+
+  uint8_t C0 = digitalRead(C0_PIN);
+  uint8_t C1 = digitalRead(C1_PIN);
+  uint8_t C2 = digitalRead(C2_PIN);
+  uint8_t C3 = digitalRead(C3_PIN);
+  uint8_t byteRead = (C3 << 3) | (C2 << 2) | (C1 << 1) | C0 ;
+  return byteRead;
 }
 
 void loop() {
