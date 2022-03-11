@@ -8,11 +8,11 @@ const uint32_t interval = 100; // Display update interval
 volatile int32_t currentStepSize;
 volatile String currentNote;
 volatile uint8_t noteIndex;
-volatile uint8_t volume; // range from 0 to 16
+volatile uint8_t volume=12; // range from 0 to 16
 const int32_t stepSizes[] = {262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 0};
 const String note[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", ""};
 uint8_t TX_Message[8] = {0};
-
+QueueHandle_t msgInQ;
 
 // Pin definitions
 // Row select and enable
@@ -48,6 +48,10 @@ U8G2_SSD1305_128X32_NONAME_F_HW_I2C u8g2(U8G2_R0);
 static int32_t phaseAcc = 0;
 volatile uint8_t keyArray[7];
 SemaphoreHandle_t keyArrayMutex;
+
+// CAN part init
+uint32_t ID = 0x123;
+uint8_t RX_Message[8] = {0};
 
 // Function to set outputs using key matrix
 void setOutMuxBit(const uint8_t bitIdx, const bool value)
@@ -111,15 +115,6 @@ void sampleISR()
     analogWrite(OUTR_PIN, Vout + 128);
 }
 
-void readStep()
-{
-    // uint32_t oldKey = keyNum;
-    // find the corresponding stepsize
-
-}
-
-
-
 int knobDecode(volatile uint8_t previous, volatile uint8_t current)
 {
     // only two bits are used in each param
@@ -158,33 +153,38 @@ int knobDecode(volatile uint8_t previous, volatile uint8_t current)
     return 0;
 }
 
-int noteDemux(int note){
-    if(note ==0){
+int noteDemux(int note)
+{
+    if (note == 0)
+    {
         return 12;
     }
-    if(note>3){
-        return (note*2)-3;
-    }else{
-        return (note*2)-1;
+    if (note > 3)
+    {
+        return (note * 2) - 3;
+    }
+    else
+    {
+        return (note * 2) - 1;
     }
 }
 
 void play_Twinkle_star()
 {
-    int twinkleStar[] = {1,1,8,8,10,10,8, 6,6,5,5,3,3,1  ,8,8,6,6,5,5,3, 8,8,6,6,5,5,3, 1,1,8,8,10,10,8, 6,6,5,5,3,3,1};
-    
+    int twinkleStar[] = {1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1, 8, 8, 6, 6, 5, 5, 3, 8, 8, 6, 6, 5, 5, 3, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1};
+
     for (int i = 0; i < 42; i++)
     {
         if ((i + 1) % 7 == 0)
         {
-            __atomic_store_n(&currentStepSize, stepSizes[twinkleStar[i]-1], __ATOMIC_RELAXED);
+            __atomic_store_n(&currentStepSize, stepSizes[twinkleStar[i] - 1], __ATOMIC_RELAXED);
             delayMicroseconds(200000);
             __atomic_store_n(&currentStepSize, 0, __ATOMIC_RELAXED);
             delayMicroseconds(150000);
         }
         else
         {
-            __atomic_store_n(&currentStepSize, stepSizes[twinkleStar[i]-1], __ATOMIC_RELAXED);
+            __atomic_store_n(&currentStepSize, stepSizes[twinkleStar[i] - 1], __ATOMIC_RELAXED);
             delayMicroseconds(200000);
             __atomic_store_n(&currentStepSize, 0, __ATOMIC_RELAXED);
             delayMicroseconds(100000);
@@ -192,19 +192,25 @@ void play_Twinkle_star()
     }
 }
 
-void play_QinTian(){
-    uint8_t qts[] = {0,5,5,1,1,2,3,0,5,5,1,1,2,3,2,1,5  ,0,5,5,1,1,2,3,0,3,2,3,4,3,2,4,3,2,1};
-    uint8_t oct[] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
-    uint8_t del[] = {2,2,2,2,4,2,2,2,2,2,2,2,1,1,1,1,2,2,2,2,2,4,2,2,2,4,1,1,1,1,1,1,1,1,1};
+void play_QinTian()
+{
+    uint8_t qts[] = {0, 5, 5, 1, 1, 2, 3, 0, 5, 5, 1, 1, 2, 3, 2, 1, 5, 0, 5, 5, 1, 1, 2, 3, 0, 3, 2, 3, 4, 3, 2, 4, 3, 2, 1};
+    uint8_t oct[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    uint8_t del[] = {2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 2, 2, 2, 2, 2, 4, 2, 2, 2, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     int current = 0;
-    int len = sizeof(qts)/sizeof(*qts);
-    for(int i=0;i<len-1;i++){
-        if(oct[i]==2){
-            current = stepSizes[noteDemux(qts[i])]/2;
-            }else{
-            current = stepSizes[noteDemux(qts[i])];}
+    int len = sizeof(qts) / sizeof(*qts);
+    for (int i = 0; i < len - 1; i++)
+    {
+        if (oct[i] == 2)
+        {
+            current = stepSizes[noteDemux(qts[i])] / 2;
+        }
+        else
+        {
+            current = stepSizes[noteDemux(qts[i])];
+        }
         __atomic_store_n(&currentStepSize, current, __ATOMIC_RELAXED);
-        delayMicroseconds(del[i]*100000);
+        delayMicroseconds(del[i] * 100000);
         __atomic_store_n(&currentStepSize, 0, __ATOMIC_RELAXED);
         delayMicroseconds(50000);
     }
@@ -232,25 +238,30 @@ void scanKeysTask(void *pvParameters)
             // xSemaphoreGive(keyArrayMutex);
         }
         // xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
-        octave = (keyArray[2] << 8)| (keyArray[1] << 4) | keyArray[0];
+        octave = (keyArray[2] << 8) | (keyArray[1] << 4) | keyArray[0];
         keyNum = 12;
-        for(uint8_t i = 0; i<12; i++){
-            if(bitRead(octave, i) == 0){
+        for (uint8_t i = 0; i < 12; i++)
+        {
+            if (bitRead(octave, i) == 0)
+            {
                 keyNum = i;
             }
         }
-        if(keyNum != 12){
+        if (keyNum != 12)
+        {
             TX_Message[0] = 'P';
             TX_Message[1] = 4;
             TX_Message[2] = keyNum;
             Serial.print("start sending message");
             CAN_TX(0x123, TX_Message);
             Serial.print("finished sending message");
+        }else{
+            TX_Message[0] = 'R';
+            CAN_TX(0x123, TX_Message);
+
         }
-        __atomic_store_n(&noteIndex, keyNum, __ATOMIC_RELAXED);
-        __atomic_store_n(&currentStepSize, stepSizes[keyNum], __ATOMIC_RELAXED);
-
-
+        // __atomic_store_n(&noteIndex, keyNum, __ATOMIC_RELAXED);
+        // __atomic_store_n(&currentStepSize, stepSizes[keyNum], __ATOMIC_RELAXED);
 
         knob3_stat = knobDecode((knobState & 0b11000000) >> 6, keyArray[3] & 0b00000011);
         knobState = ((keyArray[3] & 0b00000011) << 6) | (knobState & 0b00111111);
@@ -268,8 +279,6 @@ void displayUpdateTask(void *pvParameters)
 {
     const TickType_t xFrequency = 100 / portTICK_PERIOD_MS;
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    uint32_t ID=0x123;
-    uint8_t RX_Message[8]={0};  
     while (1)
     {
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -286,13 +295,41 @@ void displayUpdateTask(void *pvParameters)
         u8g2.drawStr(2, 30, (note[noteIndex]).c_str()); // write something to the internal memory
         u8g2.print(volume, DEC);
         u8g2.print(currentStepSize, DEC);
-        u8g2.setCursor(66,30);
-        while (CAN_CheckRXLevel())
-          CAN_RX(ID, RX_Message);
-        u8g2.print((char) RX_Message[0]);
+        u8g2.setCursor(66, 30);
+        // while (CAN_CheckRXLevel())
+        //   CAN_RX(ID, RX_Message);
+        u8g2.print((char)RX_Message[0]);
         u8g2.print(RX_Message[1]);
         u8g2.print(RX_Message[2]);
         u8g2.sendBuffer(); // transfer internal memory to the display
+    }
+}
+
+void CAN_RX_ISR(void)
+{
+    uint8_t RX_Message_ISR[8];
+    uint32_t ID;
+    CAN_RX(ID, RX_Message_ISR);
+    xQueueSendFromISR(msgInQ, RX_Message_ISR, NULL);
+}
+
+void canDecodeTask(void *pvParameters)
+{
+    char inMsg[8];
+    while (1)
+    {
+        xQueueReceive(msgInQ, inMsg, portMAX_DELAY);
+        //   Serial.println(inMsg);
+        if(inMsg[0]=='P'){
+            uint8_t oct = inMsg[1];
+            uint8_t note = inMsg[2];
+            __atomic_store_n(&currentStepSize, stepSizes[note]*oct, __ATOMIC_RELAXED);
+            __atomic_store_n(&noteIndex, note, __ATOMIC_RELAXED);
+
+        }else if(inMsg[0]=='R'){
+            __atomic_store_n(&currentStepSize, 0, __ATOMIC_RELAXED);
+            __atomic_store_n(&noteIndex, 12, __ATOMIC_RELAXED);
+        }
     }
 }
 
@@ -323,11 +360,10 @@ void setup()
     u8g2.begin();
     setOutMuxBit(DEN_BIT, HIGH); // Enable display power supply
 
-
     // Initialise UART
     Serial.begin(9600);
 
-    //Timer init
+    // Timer init
     TIM_TypeDef *Instance = TIM1;
     HardwareTimer *sampleTimer = new HardwareTimer(Instance);
     sampleTimer->setOverflow(22000, HERTZ_FORMAT);
@@ -353,17 +389,27 @@ void setup()
         2,
         &displayUpdateHandle);
 
+    TaskHandle_t canDecodeTaskHanle = NULL;
+    xTaskCreate(
+        canDecodeTask,
+        "canDecode",
+        256,
+        NULL,
+        1,
+        &canDecodeTaskHanle);
+
     keyArrayMutex = xSemaphoreCreateMutex();
 
     CAN_Init(false);
-    setCANFilter(0x123,0x7ff);
+    setCANFilter(0x123, 0x7ff);
+    CAN_RegisterRX_ISR(CAN_RX_ISR);
     CAN_Start();
+
+    // Queue length = 36, queue size = 8 bytes
+    msgInQ = xQueueCreate(36, 8);
 
     // Start of RTOS scheduler
     vTaskStartScheduler();
-    
 }
 
 void loop() {}
-
-
