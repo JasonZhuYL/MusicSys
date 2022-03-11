@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <STM32FreeRTOS.h>
+#include <ES_CAN.h>
 
 // Constants
 const uint32_t interval = 100; // Display update interval
@@ -10,6 +11,8 @@ volatile uint8_t noteIndex;
 volatile uint8_t volume; // range from 0 to 16
 const int32_t stepSizes[] = {262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 0};
 const String note[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", ""};
+uint8_t TX_Message[8] = {0};
+
 
 // Pin definitions
 // Row select and enable
@@ -108,67 +111,14 @@ void sampleISR()
     analogWrite(OUTR_PIN, Vout + 128);
 }
 
-void readStep(volatile uint8_t keyArrayL[7])
+void readStep()
 {
     // uint32_t oldKey = keyNum;
     // find the corresponding stepsize
-    uint32_t keyNum = 12;
 
-    if (bitRead(keyArrayL[0], 0) == 0)
-    {
-        keyNum = 0;
-    }
-    else if (bitRead(keyArrayL[0], 1) == 0)
-    {
-        keyNum = 1;
-    }
-    else if (bitRead(keyArrayL[0], 2) == 0)
-    {
-        keyNum = 2;
-    }
-    else if (bitRead(keyArrayL[0], 3) == 0)
-    {
-        keyNum = 3;
-    }
-    else if (bitRead(keyArrayL[1], 0) == 0)
-    {
-        keyNum = 4;
-    }
-    else if (bitRead(keyArrayL[1], 1) == 0)
-    {
-        keyNum = 5;
-    }
-    else if (bitRead(keyArrayL[1], 2) == 0)
-    {
-        keyNum = 6;
-    }
-    else if (bitRead(keyArrayL[1], 3) == 0)
-    {
-        keyNum = 7;
-    }
-    else if (bitRead(keyArrayL[2], 0) == 0)
-    {
-        keyNum = 8;
-    }
-    else if (bitRead(keyArrayL[2], 1) == 0)
-    {
-        keyNum = 9;
-    }
-    else if (bitRead(keyArrayL[2], 2) == 0)
-    {
-        keyNum = 10;
-    }
-    else if (bitRead(keyArrayL[2], 3) == 0)
-    {
-        keyNum = 11;
-    }
-    else
-    {
-        keyNum = 12;
-    }
-    noteIndex = keyNum;
-    __atomic_store_n(&currentStepSize, stepSizes[keyNum], __ATOMIC_RELAXED);
 }
+
+
 
 int knobDecode(volatile uint8_t previous, volatile uint8_t current)
 {
@@ -268,6 +218,8 @@ void scanKeysTask(void *pvParameters)
     volatile uint8_t knobState = 0;
     volatile uint8_t knob3_stat = 0;
     volatile uint8_t knob3_stat_pre = 1;
+    uint16_t keyNum = 12;
+    uint16_t octave = 0;
     while (1)
     {
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -280,7 +232,25 @@ void scanKeysTask(void *pvParameters)
             // xSemaphoreGive(keyArrayMutex);
         }
         // xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
-        readStep(keyArray);
+        octave = (keyArray[2] << 8)| (keyArray[1] << 4) | keyArray[0];
+        keyNum = 12;
+        for(uint8_t i = 0; i<12; i++){
+            if(bitRead(octave, i) == 0){
+                keyNum = i;
+            }
+        }
+        if(keyNum != 12){
+            TX_Message[0] = 'P';
+            TX_Message[1] = 4;
+            TX_Message[2] = keyNum;
+            Serial.print("start sending message");
+            CAN_TX(0x123, TX_Message);
+            Serial.print("finished sending message");
+        }
+        __atomic_store_n(&noteIndex, keyNum, __ATOMIC_RELAXED);
+        __atomic_store_n(&currentStepSize, stepSizes[keyNum], __ATOMIC_RELAXED);
+
+
 
         knob3_stat = knobDecode((knobState & 0b11000000) >> 6, keyArray[3] & 0b00000011);
         knobState = ((keyArray[3] & 0b00000011) << 6) | (knobState & 0b00111111);
@@ -298,13 +268,15 @@ void displayUpdateTask(void *pvParameters)
 {
     const TickType_t xFrequency = 100 / portTICK_PERIOD_MS;
     TickType_t xLastWakeTime = xTaskGetTickCount();
-
+    uint32_t ID=0x123;
+    uint8_t RX_Message[8]={0};  
     while (1)
     {
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
         u8g2.clearBuffer();                 // clear the internal memory
         u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
         u8g2.drawStr(2, 10, "Hola!");       // write something to the internal memory
+        u8g2.setCursor(2, 20);
         for (uint8_t i = 0; i < 3; i++)
         {
             // xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
@@ -314,7 +286,12 @@ void displayUpdateTask(void *pvParameters)
         u8g2.drawStr(2, 30, (note[noteIndex]).c_str()); // write something to the internal memory
         u8g2.print(volume, DEC);
         u8g2.print(currentStepSize, DEC);
-        u8g2.setCursor(2, 20);
+        u8g2.setCursor(66,30);
+        while (CAN_CheckRXLevel())
+          CAN_RX(ID, RX_Message);
+        u8g2.print((char) RX_Message[0]);
+        u8g2.print(RX_Message[1]);
+        u8g2.print(RX_Message[2]);
         u8g2.sendBuffer(); // transfer internal memory to the display
     }
 }
@@ -346,15 +323,16 @@ void setup()
     u8g2.begin();
     setOutMuxBit(DEN_BIT, HIGH); // Enable display power supply
 
+
+    // Initialise UART
+    Serial.begin(9600);
+
+    //Timer init
     TIM_TypeDef *Instance = TIM1;
     HardwareTimer *sampleTimer = new HardwareTimer(Instance);
     sampleTimer->setOverflow(22000, HERTZ_FORMAT);
     sampleTimer->attachInterrupt(sampleISR);
     sampleTimer->resume();
-
-    // Initialise UART
-    Serial.begin(9600);
-    Serial.println("Hello World");
 
     // RTOS initialize thread
     TaskHandle_t scanKeysHandle = NULL;
@@ -375,10 +353,15 @@ void setup()
         2,
         &displayUpdateHandle);
 
-    // Start of RTOS scheduler
-    vTaskStartScheduler();
     keyArrayMutex = xSemaphoreCreateMutex();
 
+    CAN_Init(false);
+    setCANFilter(0x123,0x7ff);
+    CAN_Start();
+
+    // Start of RTOS scheduler
+    vTaskStartScheduler();
+    
 }
 
 void loop() {}
