@@ -9,14 +9,18 @@ volatile int32_t currentStepSize;
 volatile String currentNote;
 volatile uint8_t noteIndex;
 uint8_t volume = 12; // range from 0 to 16
-uint8_t octive = 4;  // range from 0 to 16
+uint8_t octave = 4;  // range from 0 to 16
+uint8_t octave_multi = 8;
 uint8_t var0 = 0;
 uint8_t var1 = 0;
 
-const int32_t stepSizes[] = {262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 0};
+// const int32_t stepSizes[] = {262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 0};
+const int32_t stepSizes[] = {32, 34, 36, 39, 41, 43, 46, 49, 52, 55, 58, 62, 0};
 const String note[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", ""};
 uint8_t TX_Message[8] = {0};
 QueueHandle_t msgInQ;
+QueueHandle_t msgOutQ;
+SemaphoreHandle_t CAN_TX_Semaphore;
 
 // Pin definitions
 // Row select and enable
@@ -224,7 +228,6 @@ void play_QinTian()
 void scanKeysTask(void *pvParameters)
 {
     // FIXME: Here the type of variables need to be optimized
-    // FIXME: And the name confliction between octive and octave
     const TickType_t xFrequency = 50 / portTICK_PERIOD_MS;
     TickType_t xLastWakeTime = xTaskGetTickCount();
     volatile uint8_t knobState = 0;
@@ -233,7 +236,7 @@ void scanKeysTask(void *pvParameters)
     volatile uint8_t knob1_stat = 0;
     volatile uint8_t knob0_stat = 0;
     uint16_t keyNum = 12;
-    uint16_t octave = 0;
+    uint16_t keysBytes = 0;
     while (1)
     {
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -248,11 +251,11 @@ void scanKeysTask(void *pvParameters)
         // xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
 
         // Handling the notes
-        octave = (keyArray[2] << 8) | (keyArray[1] << 4) | keyArray[0];
+        keysBytes = (keyArray[2] << 8) | (keyArray[1] << 4) | keyArray[0];
         keyNum = 12;
         for (uint8_t i = 0; i < 12; i++)
         {
-            if (bitRead(octave, i) == 0)
+            if (bitRead(keysBytes, i) == 0)
             {
                 keyNum = i;
             }
@@ -260,16 +263,18 @@ void scanKeysTask(void *pvParameters)
         if (keyNum != 12)
         {
             TX_Message[0] = 'P';
-            TX_Message[1] = octive;
+            TX_Message[1] = octave;
             TX_Message[2] = keyNum;
             // Serial.print("start sending message");
-            CAN_TX(0x123, TX_Message);
+            xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+            // CAN_TX(0x123, TX_Message);
             // Serial.print("finished sending message");
         }
         else
         {
             TX_Message[0] = 'R';
-            CAN_TX(0x123, TX_Message);
+            xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+            // CAN_TX(0x123, TX_Message);
         }
         // __atomic_store_n(&noteIndex, keyNum, __ATOMIC_RELAXED);
         // __atomic_store_n(&currentStepSize, stepSizes[keyNum], __ATOMIC_RELAXED);
@@ -284,7 +289,7 @@ void scanKeysTask(void *pvParameters)
         }
         knob2_stat = knobDecode((knobState & 0b00110000) >> 4, (keyArray[3] & 0b00001100) >> 2);
         knobState = ((keyArray[3] & 0b00001100) << 2) | (knobState & 0b11001111);
-        octive += knob2_stat;
+        octave += knob2_stat;
 
         knob1_stat = knobDecode((knobState & 0b00001100) >> 2, keyArray[4] & 0b00000011);
         knobState = ((keyArray[4] & 0b00000011) << 2 | (knobState & 0b11110011));
@@ -298,7 +303,7 @@ void scanKeysTask(void *pvParameters)
         if ((keyArray[5] & 0b00000001) == 0)
         {
             // knob3 pressed
-            play_QinTian();
+            // play_QinTian();
         }
         else if ((keyArray[5] & 0b00000010) == 0)
         {
@@ -312,6 +317,20 @@ void scanKeysTask(void *pvParameters)
         else if ((keyArray[6] & 0b00000010) == 0)
         {
             // knob0 pressed
+        }
+        else if ((keyArray[5] & 0b00000100) == 0)
+        {
+            // joystick pressed
+        }
+        else if ((keyArray[5] & 0b00001000) == 0)
+        {
+            // west detected
+            Serial.println("Device attached to the left");
+        }
+        else if ((keyArray[6] & 0b00001000) == 0)
+        {
+            // east detected
+            Serial.println("Device attached to the right");
         }
     }
 }
@@ -332,7 +351,7 @@ void displayUpdateTask(void *pvParameters)
         u8g2.print(volume, DEC);
         u8g2.setCursor(73, 10);
         u8g2.drawStr(45, 10, "OCT:");
-        u8g2.print(octive, DEC);
+        u8g2.print(octave, DEC);
         // u8g2.drawStr(85,10,"Vs:");
         u8g2.setCursor(95, 10);
         u8g2.print(var0, DEC);
@@ -381,7 +400,7 @@ void canDecodeTask(void *pvParameters)
         {
             uint8_t oct = inMsg[1];
             uint8_t note = inMsg[2];
-            __atomic_store_n(&currentStepSize, stepSizes[note] * (2 ^ (oct - 4)), __ATOMIC_RELAXED);
+            __atomic_store_n(&currentStepSize, stepSizes[note] * (2 ^ octave_multi), __ATOMIC_RELAXED);
             __atomic_store_n(&noteIndex, note, __ATOMIC_RELAXED);
         }
         else if (inMsg[0] == 'R')
@@ -389,7 +408,32 @@ void canDecodeTask(void *pvParameters)
             __atomic_store_n(&currentStepSize, 0, __ATOMIC_RELAXED);
             __atomic_store_n(&noteIndex, 12, __ATOMIC_RELAXED);
         }
+        else if (inMsg[0] == 'C')
+        {
+            // Slave mode activated
+            uint8_t Master_OCT = inMsg[1];
+            // Should test out west detect/east detect to finish this function
+
+            // A more advanced functionality would be
+            // using the second board's speaker to play beats
+        }
     }
+}
+
+void canTxTask(void *pvParameters)
+{
+    uint8_t msgOut[8];
+    while (1)
+    {
+        xQueueReceive(msgOutQ, msgOut, portMAX_DELAY);
+        xSemaphoreTake(CAN_TX_Semaphore, portMAX_DELAY);
+        CAN_TX(0x123, msgOut);
+    }
+}
+
+void CAN_TX_ISR(void)
+{
+    xSemaphoreGiveFromISR(CAN_TX_Semaphore, NULL);
 }
 
 void setup()
@@ -457,17 +501,35 @@ void setup()
         1,
         &canDecodeTaskHanle);
 
+    TaskHandle_t canTxTaskHanle = NULL;
+    xTaskCreate(
+        canTxTask,
+        "canTx",
+        256,
+        NULL,
+        1,
+        &canTxTaskHanle);
+
     keyArrayMutex = xSemaphoreCreateMutex();
 
     CAN_Init(true);
     setCANFilter(0x123, 0x7ff);
     CAN_RegisterRX_ISR(CAN_RX_ISR);
+    CAN_RegisterTX_ISR(CAN_TX_ISR);
     CAN_Start();
 
+    // Message input for CAN bus
     // Queue length = 36, queue size = 8 bytes
     msgInQ = xQueueCreate(36, 8);
 
+    // Message output for CAN bus
+    //  slots = 3
+    //  max count = 3
+    msgOutQ = xQueueCreate(36, 8);
+    CAN_TX_Semaphore = xSemaphoreCreateCounting(3, 3);
+
     // Start of RTOS scheduler
+    // Better to put it at the end of setup
     vTaskStartScheduler();
 }
 
