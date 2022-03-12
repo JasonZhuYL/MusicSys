@@ -8,7 +8,11 @@ const uint32_t interval = 100; // Display update interval
 volatile int32_t currentStepSize;
 volatile String currentNote;
 volatile uint8_t noteIndex;
-volatile uint8_t volume=12; // range from 0 to 16
+uint8_t volume = 12; // range from 0 to 16
+uint8_t octive = 4;  // range from 0 to 16
+uint8_t var0 = 0;
+uint8_t var1 = 0;
+
 const int32_t stepSizes[] = {262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 0};
 const String note[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", ""};
 uint8_t TX_Message[8] = {0};
@@ -171,20 +175,20 @@ int noteDemux(int note)
 
 void play_Twinkle_star()
 {
-    int twinkleStar[] = {1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1, 8, 8, 6, 6, 5, 5, 3, 8, 8, 6, 6, 5, 5, 3, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1};
+    uint8_t twinkleStar[] = {1, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1, 8, 8, 6, 6, 5, 5, 3, 8, 8, 6, 6, 5, 5, 3, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1};
 
-    for (int i = 0; i < 42; i++)
+    for (int i = 0; i < 43; i++)
     {
         if ((i + 1) % 7 == 0)
         {
-            __atomic_store_n(&currentStepSize, stepSizes[twinkleStar[i] - 1], __ATOMIC_RELAXED);
+            __atomic_store_n(&currentStepSize, stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
             delayMicroseconds(200000);
             __atomic_store_n(&currentStepSize, 0, __ATOMIC_RELAXED);
             delayMicroseconds(150000);
         }
         else
         {
-            __atomic_store_n(&currentStepSize, stepSizes[twinkleStar[i] - 1], __ATOMIC_RELAXED);
+            __atomic_store_n(&currentStepSize, stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
             delayMicroseconds(200000);
             __atomic_store_n(&currentStepSize, 0, __ATOMIC_RELAXED);
             delayMicroseconds(100000);
@@ -212,24 +216,28 @@ void play_QinTian()
         __atomic_store_n(&currentStepSize, current, __ATOMIC_RELAXED);
         delayMicroseconds(del[i] * 100000);
         __atomic_store_n(&currentStepSize, 0, __ATOMIC_RELAXED);
-        delayMicroseconds(50000);
+        delayMicroseconds(del[i] * 20000);
     }
     Serial.println("finished");
 }
 
 void scanKeysTask(void *pvParameters)
 {
+    // FIXME: Here the type of variables need to be optimized
+    // FIXME: And the name confliction between octive and octave
     const TickType_t xFrequency = 50 / portTICK_PERIOD_MS;
     TickType_t xLastWakeTime = xTaskGetTickCount();
     volatile uint8_t knobState = 0;
     volatile uint8_t knob3_stat = 0;
-    volatile uint8_t knob3_stat_pre = 1;
+    volatile uint8_t knob2_stat = 0;
+    volatile uint8_t knob1_stat = 0;
+    volatile uint8_t knob0_stat = 0;
     uint16_t keyNum = 12;
     uint16_t octave = 0;
     while (1)
     {
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
-        for (uint8_t i = 0; i < 5; i++)
+        for (uint8_t i = 0; i < 7; i++)
         {
             setRow(i);
             delayMicroseconds(3);
@@ -238,6 +246,8 @@ void scanKeysTask(void *pvParameters)
             // xSemaphoreGive(keyArrayMutex);
         }
         // xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
+
+        // Handling the notes
         octave = (keyArray[2] << 8) | (keyArray[1] << 4) | keyArray[0];
         keyNum = 12;
         for (uint8_t i = 0; i < 12; i++)
@@ -250,27 +260,58 @@ void scanKeysTask(void *pvParameters)
         if (keyNum != 12)
         {
             TX_Message[0] = 'P';
-            TX_Message[1] = 4;
+            TX_Message[1] = octive;
             TX_Message[2] = keyNum;
-            Serial.print("start sending message");
+            // Serial.print("start sending message");
             CAN_TX(0x123, TX_Message);
-            Serial.print("finished sending message");
-        }else{
+            // Serial.print("finished sending message");
+        }
+        else
+        {
             TX_Message[0] = 'R';
             CAN_TX(0x123, TX_Message);
-
         }
         // __atomic_store_n(&noteIndex, keyNum, __ATOMIC_RELAXED);
         // __atomic_store_n(&currentStepSize, stepSizes[keyNum], __ATOMIC_RELAXED);
 
+        // Handling the knob rotation
         knob3_stat = knobDecode((knobState & 0b11000000) >> 6, keyArray[3] & 0b00000011);
         knobState = ((keyArray[3] & 0b00000011) << 6) | (knobState & 0b00111111);
         volume += knob3_stat;
         if (volume > 16)
         {
             volume = 16;
+        }
+        knob2_stat = knobDecode((knobState & 0b00110000) >> 4, (keyArray[3] & 0b00001100) >> 2);
+        knobState = ((keyArray[3] & 0b00001100) << 2) | (knobState & 0b11001111);
+        octive += knob2_stat;
+
+        knob1_stat = knobDecode((knobState & 0b00001100) >> 2, keyArray[4] & 0b00000011);
+        knobState = ((keyArray[4] & 0b00000011) << 2 | (knobState & 0b11110011));
+        var1 += knob1_stat;
+
+        knob0_stat = knobDecode((knobState & 0b00000011), (keyArray[4] & 0b00001100) >> 2);
+        knobState = ((keyArray[4] & 0b00001100)) >> 2 | (knobState & 0b11111100);
+        var0 += knob0_stat;
+
+        // Handling the knob press
+        if ((keyArray[5] & 0b00000001) == 0)
+        {
+            // knob3 pressed
             play_QinTian();
-            Serial.println("QINGTIAN now playing");
+        }
+        else if ((keyArray[5] & 0b00000010) == 0)
+        {
+            // knob2 pressed
+            play_Twinkle_star();
+        }
+        else if ((keyArray[6] & 0b00000010) == 0)
+        {
+            // knob1 pressed
+        }
+        else if ((keyArray[6] & 0b00000010) == 0)
+        {
+            // knob0 pressed
         }
     }
 }
@@ -284,23 +325,39 @@ void displayUpdateTask(void *pvParameters)
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
         u8g2.clearBuffer();                 // clear the internal memory
         u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
-        u8g2.drawStr(2, 10, "Hola!");       // write something to the internal memory
+
+        // First line in display
+        u8g2.setCursor(28, 10);
+        u8g2.drawStr(2, 10, "VOL:");
+        u8g2.print(volume, DEC);
+        u8g2.setCursor(73, 10);
+        u8g2.drawStr(45, 10, "OCT:");
+        u8g2.print(octive, DEC);
+        // u8g2.drawStr(85,10,"Vs:");
+        u8g2.setCursor(95, 10);
+        u8g2.print(var0, DEC);
+        u8g2.setCursor(110, 10);
+        u8g2.print(var1, DEC);
+
+        // Second line in display;
         u8g2.setCursor(2, 20);
-        for (uint8_t i = 0; i < 3; i++)
+        for (uint8_t i = 0; i < 7; i++)
         {
             // xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
             u8g2.print(keyArray[i], HEX);
             // xSemaphoreGive(keyArrayMutex);
         }
-        u8g2.drawStr(2, 30, (note[noteIndex]).c_str()); // write something to the internal memory
-        u8g2.print(volume, DEC);
+        u8g2.setCursor(70, 20);
         u8g2.print(currentStepSize, DEC);
-        u8g2.setCursor(66, 30);
-        // while (CAN_CheckRXLevel())
-        //   CAN_RX(ID, RX_Message);
+
+        // Third line in display;
+        u8g2.drawStr(2, 30, (note[noteIndex]).c_str()); // write something to the internal memory
+        u8g2.setCursor(70, 30);
+        u8g2.drawStr(35, 30, "CAN:");
         u8g2.print((char)RX_Message[0]);
         u8g2.print(RX_Message[1]);
         u8g2.print(RX_Message[2]);
+
         u8g2.sendBuffer(); // transfer internal memory to the display
     }
 }
@@ -320,13 +377,15 @@ void canDecodeTask(void *pvParameters)
     {
         xQueueReceive(msgInQ, inMsg, portMAX_DELAY);
         //   Serial.println(inMsg);
-        if(inMsg[0]=='P'){
+        if (inMsg[0] == 'P')
+        {
             uint8_t oct = inMsg[1];
             uint8_t note = inMsg[2];
-            __atomic_store_n(&currentStepSize, stepSizes[note]*oct, __ATOMIC_RELAXED);
+            __atomic_store_n(&currentStepSize, stepSizes[note] * (2 ^ (oct - 4)), __ATOMIC_RELAXED);
             __atomic_store_n(&noteIndex, note, __ATOMIC_RELAXED);
-
-        }else if(inMsg[0]=='R'){
+        }
+        else if (inMsg[0] == 'R')
+        {
             __atomic_store_n(&currentStepSize, 0, __ATOMIC_RELAXED);
             __atomic_store_n(&noteIndex, 12, __ATOMIC_RELAXED);
         }
@@ -400,7 +459,7 @@ void setup()
 
     keyArrayMutex = xSemaphoreCreateMutex();
 
-    CAN_Init(false);
+    CAN_Init(true);
     setCANFilter(0x123, 0x7ff);
     CAN_RegisterRX_ISR(CAN_RX_ISR);
     CAN_Start();
