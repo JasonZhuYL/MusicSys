@@ -10,17 +10,19 @@ volatile String currentNote;
 volatile uint8_t noteIndex;
 uint8_t volume = 12; // range from 0 to 16
 uint8_t octave = 4;  // range from 0 to 16
-uint8_t octave_multi = 8;
+uint8_t octave_multi=8;
 uint8_t var0 = 0;
 uint8_t var1 = 0;
-
-// const int32_t stepSizes[] = {262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 0};
-const int32_t stepSizes[] = {32, 34, 36, 39, 41, 43, 46, 49, 52, 55, 58, 62, 0};
+uint8_t CanMode;
+// Alone=0, Master=1, Slave1=2, Slave2=3
+const int32_t stepSizes[] = {262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 0};
+// const int32_t stepSizes[] = {32, 34, 36, 39, 41, 43, 46, 49, 52, 55, 58, 62, 0};
 const String note[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", ""};
 uint8_t TX_Message[8] = {0};
 QueueHandle_t msgInQ;
 QueueHandle_t msgOutQ;
 SemaphoreHandle_t CAN_TX_Semaphore;
+
 
 // Pin definitions
 // Row select and enable
@@ -266,14 +268,14 @@ void scanKeysTask(void *pvParameters)
             TX_Message[1] = octave;
             TX_Message[2] = keyNum;
             // Serial.print("start sending message");
-            xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+            xQueueSend( msgOutQ, TX_Message, portMAX_DELAY);
             // CAN_TX(0x123, TX_Message);
             // Serial.print("finished sending message");
         }
         else
         {
             TX_Message[0] = 'R';
-            xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+            xQueueSend( msgOutQ, TX_Message, portMAX_DELAY);
             // CAN_TX(0x123, TX_Message);
         }
         // __atomic_store_n(&noteIndex, keyNum, __ATOMIC_RELAXED);
@@ -313,6 +315,11 @@ void scanKeysTask(void *pvParameters)
         else if ((keyArray[6] & 0b00000010) == 0)
         {
             // knob1 pressed
+            // After being pressed configure the CAN mode 
+            CanMode = ( (keyArray[5] & 0b0001000) | ((keyArray[6] & 0b00001000)>>1) )>>2;
+            Serial.println(CanMode);
+            // Master is always on the right 
+            // Alone = 3 master = 1 slave =2 slaveMiddle=0
         }
         else if ((keyArray[6] & 0b00000010) == 0)
         {
@@ -322,16 +329,17 @@ void scanKeysTask(void *pvParameters)
         {
             // joystick pressed
         }
-        else if ((keyArray[5] & 0b00001000) == 0)
-        {
-            // west detected
-            Serial.println("Device attached to the left");
-        }
-        else if ((keyArray[6] & 0b00001000) == 0)
-        {
-            // east detected
-            Serial.println("Device attached to the right");
-        }
+        // else if ((keyArray[5] & 0b0000100) == 0)
+        // {
+        //     // LEFT attached west detected 
+        //     // Serial.println("Device attached to the left");
+        // }
+        // else if ((keyArray[6] & 0b00001000) == 0)
+        // {
+        //     // RIGHT attached east detected 
+        //     Serial.println("Device attached to the right");
+        // }
+        
     }
 }
 
@@ -400,7 +408,7 @@ void canDecodeTask(void *pvParameters)
         {
             uint8_t oct = inMsg[1];
             uint8_t note = inMsg[2];
-            __atomic_store_n(&currentStepSize, stepSizes[note] * (2 ^ octave_multi), __ATOMIC_RELAXED);
+            __atomic_store_n(&currentStepSize, stepSizes[note]*oct, __ATOMIC_RELAXED);
             __atomic_store_n(&noteIndex, note, __ATOMIC_RELAXED);
         }
         else if (inMsg[0] == 'R')
@@ -408,31 +416,27 @@ void canDecodeTask(void *pvParameters)
             __atomic_store_n(&currentStepSize, 0, __ATOMIC_RELAXED);
             __atomic_store_n(&noteIndex, 12, __ATOMIC_RELAXED);
         }
-        else if (inMsg[0] == 'C')
-        {
-            // Slave mode activated
+        else if (inMsg[0] == 'C'){
+            //Slave mode activated 
             uint8_t Master_OCT = inMsg[1];
-            // Should test out west detect/east detect to finish this function
+            // Should test out west detect/east detect to finish this function 
 
-            // A more advanced functionality would be
+            // A more advanced functionality would be 
             // using the second board's speaker to play beats
         }
     }
 }
 
-void canTxTask(void *pvParameters)
-{
+void canTxTask (void * pvParameters) { 
     uint8_t msgOut[8];
-    while (1)
-    {
-        xQueueReceive(msgOutQ, msgOut, portMAX_DELAY);
-        xSemaphoreTake(CAN_TX_Semaphore, portMAX_DELAY);
-        CAN_TX(0x123, msgOut);
-    }
+    while (1) {
+    xQueueReceive(msgOutQ, msgOut, portMAX_DELAY); 
+    xSemaphoreTake(CAN_TX_Semaphore, portMAX_DELAY); 
+    CAN_TX(0x123, msgOut);
+    } 
 }
 
-void CAN_TX_ISR(void)
-{
+void CAN_TX_ISR (void) { 
     xSemaphoreGiveFromISR(CAN_TX_Semaphore, NULL);
 }
 
@@ -490,7 +494,8 @@ void setup()
         256,
         NULL,
         2,
-        &displayUpdateHandle);
+        &displayUpdateHandle
+    );
 
     TaskHandle_t canDecodeTaskHanle = NULL;
     xTaskCreate(
@@ -499,7 +504,8 @@ void setup()
         256,
         NULL,
         1,
-        &canDecodeTaskHanle);
+        &canDecodeTaskHanle
+    );
 
     TaskHandle_t canTxTaskHanle = NULL;
     xTaskCreate(
@@ -508,7 +514,8 @@ void setup()
         256,
         NULL,
         1,
-        &canTxTaskHanle);
+        &canTxTaskHanle
+    );
 
     keyArrayMutex = xSemaphoreCreateMutex();
 
@@ -518,18 +525,18 @@ void setup()
     CAN_RegisterTX_ISR(CAN_TX_ISR);
     CAN_Start();
 
-    // Message input for CAN bus
+    // Message input for CAN bus 
     // Queue length = 36, queue size = 8 bytes
     msgInQ = xQueueCreate(36, 8);
 
-    // Message output for CAN bus
+    // Message output for CAN bus 
     //  slots = 3
     //  max count = 3
     msgOutQ = xQueueCreate(36, 8);
-    CAN_TX_Semaphore = xSemaphoreCreateCounting(3, 3);
-
+    CAN_TX_Semaphore = xSemaphoreCreateCounting(3,3);
+    
     // Start of RTOS scheduler
-    // Better to put it at the end of setup
+    // Better to put it at the end of setup 
     vTaskStartScheduler();
 }
 
