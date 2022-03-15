@@ -2,6 +2,7 @@
 #include <U8g2lib.h>
 #include <STM32FreeRTOS.h>
 #include <ES_CAN.h>
+#include <math.h>
 
 // Constants
 const uint32_t interval = 100; // Display update interval
@@ -260,7 +261,7 @@ void scanKeysTask(void *pvParameters)
         // xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
 
         // Handling the notes
-        //********TODO: Honesly this is a really bad implementation
+        //********TODO: Honesly this is a bad implementation
         // Although it could complete the functionality,
         // the code is unreadable and hard to understand
         keysBytes = (keyArray[2] << 8) | (keyArray[1] << 4) | keyArray[0];
@@ -345,7 +346,11 @@ void scanKeysTask(void *pvParameters)
                 __atomic_store_n(&noteIndex, keyNum, __ATOMIC_RELAXED);
                 // FIXME: The octave power doesn't work
                 //  __atomic_store_n(&currentStepSize, stepSizes[keyNum] * pow(2,octave - 4), __ATOMIC_RELAXED);
-                __atomic_store_n(&currentStepSize, stepSizes[keyNum], __ATOMIC_RELAXED);
+                if (octave<4){
+                  __atomic_store_n(&currentStepSize, stepSizes[keyNum]>>(4-octave), __ATOMIC_RELAXED);
+                }else{
+                  __atomic_store_n(&currentStepSize, stepSizes[keyNum]<<(octave-4), __ATOMIC_RELAXED);
+                }
             }
         }
 
@@ -490,11 +495,12 @@ void canDecodeTask(void *pvParameters)
         {
             uint8_t oct = inMsg[1];
             uint8_t note = inMsg[2];
-            // __atomic_store_n(&currentStepSize, stepSizes[note]* pow(2,octave-4), __ATOMIC_RELAXED);
-            // FIXME: The thing doesn't work.
             externalPress = true;
-            __atomic_store_n(&currentStepSize, stepSizes[note], __ATOMIC_RELAXED);
-            __atomic_store_n(&noteIndex, note, __ATOMIC_RELAXED);
+              if (oct<4){
+                __atomic_store_n(&currentStepSize, stepSizes[note]>>(4-oct), __ATOMIC_RELAXED);
+              }else{
+                __atomic_store_n(&currentStepSize, stepSizes[note]<<(oct-4), __ATOMIC_RELAXED);
+              }
         }
         else if (inMsg[0] == 'R')
         {
