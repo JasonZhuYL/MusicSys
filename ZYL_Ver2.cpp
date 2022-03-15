@@ -365,6 +365,14 @@ void scanKeysTask(void *pvParameters)
         knob2_stat = knobDecode((knobState & 0b00110000) >> 4, (keyArray[3] & 0b00001100) >> 2);
         knobState = ((keyArray[3] & 0b00001100) << 2) | (knobState & 0b11001111);
         octave += knob2_stat;
+        if(masterMode = true){
+          if(knob2_stat == 0){
+          }else{
+              TX_Message[0] = 'C';
+              TX_Message[1] = octave;
+              xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+          }
+        }
 
         knob1_stat = knobDecode((knobState & 0b00001100) >> 2, keyArray[4] & 0b00000011);
         knobState = ((keyArray[4] & 0b00000011) << 2 | (knobState & 0b11110011));
@@ -513,7 +521,8 @@ void canDecodeTask(void *pvParameters)
             // Slave mode activated
             uint8_t Master_OCT = inMsg[1];
             // Should test out west detect/east detect to finish this function
-
+            // if(CanMode == 2){}
+            octave = Master_OCT +1;
             // A more advanced functionality would be
             // using the second board's speaker to play beats
         }
