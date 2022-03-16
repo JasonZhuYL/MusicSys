@@ -3,6 +3,7 @@
 #include <STM32FreeRTOS.h>
 #include <ES_CAN.h>
 #include <math.h>
+#include <knob.h>
 
 // Constants
 const uint32_t interval = 100; // Display update interval
@@ -26,6 +27,12 @@ uint8_t TX_Message[8] = {0};
 QueueHandle_t msgInQ;
 QueueHandle_t msgOutQ;
 SemaphoreHandle_t CAN_TX_Semaphore;
+
+// Initialize knob decoder 
+knob_decoder* Decoder3 = new knob_decoder(12,16,0);
+knob_decoder* Decoder2 = new knob_decoder(4,12,0);
+knob_decoder* Decoder1 = new knob_decoder(0,16,0);
+knob_decoder* Decoder0 = new knob_decoder(0,16,0);
 
 // Pin definitions
 // Row select and enable
@@ -353,34 +360,15 @@ void scanKeysTask(void *pvParameters)
                 }
             }
         }
-
-        // Handling the knob rotation
-        knob3_stat = knobDecode((knobState & 0b11000000) >> 6, keyArray[3] & 0b00000011);
-        knobState = ((keyArray[3] & 0b00000011) << 6) | (knobState & 0b00111111);
-        volume += knob3_stat;
-        if (volume > 16)
-        {
-            volume = 16;
-        }
-        knob2_stat = knobDecode((knobState & 0b00110000) >> 4, (keyArray[3] & 0b00001100) >> 2);
-        knobState = ((keyArray[3] & 0b00001100) << 2) | (knobState & 0b11001111);
-        octave += knob2_stat;
-        if(masterMode = true){
-          if(knob2_stat == 0){
-          }else{
-              TX_Message[0] = 'C';
-              TX_Message[1] = octave;
-              xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
-          }
-        }
-
-        knob1_stat = knobDecode((knobState & 0b00001100) >> 2, keyArray[4] & 0b00000011);
-        knobState = ((keyArray[4] & 0b00000011) << 2 | (knobState & 0b11110011));
-        var1 += knob1_stat;
-
-        knob0_stat = knobDecode((knobState & 0b00000011), (keyArray[4] & 0b00001100) >> 2);
-        knobState = ((keyArray[4] & 0b00001100)) >> 2 | (knobState & 0b11111100);
-        var0 += knob0_stat;
+        //Using knob class decode knob 
+        Decoder3->update( keyArray[3] & 0b00000011);
+        Decoder2->update((keyArray[3] & 0b00001100) >> 2);
+        Decoder1->update( keyArray[4] & 0b00000011);
+        Decoder0->update((keyArray[4] & 0b00001100) >> 2);
+        volume = Decoder3->get_val();
+        octave = Decoder2->get_val();
+        var1 = Decoder1->get_val();
+        var0 = Decoder0->get_val();
 
         // Handling the knob press
         if ((keyArray[5] & 0b00000001) == 0)
@@ -501,20 +489,25 @@ void canDecodeTask(void *pvParameters)
         //   Serial.println(inMsg);
         if (inMsg[0] == 'P')
         {
-            uint8_t oct = inMsg[1];
-            uint8_t note = inMsg[2];
-            externalPress = true;
-              if (oct<4){
-                __atomic_store_n(&currentStepSize, stepSizes[note]>>(4-oct), __ATOMIC_RELAXED);
-              }else{
-                __atomic_store_n(&currentStepSize, stepSizes[note]<<(oct-4), __ATOMIC_RELAXED);
-              }
+            if(masterMode == true){
+                Serial.println("receiving message as master");
+                uint8_t oct = inMsg[1];
+                uint8_t note = inMsg[2];
+                externalPress = true;
+                if (oct<4){
+                    __atomic_store_n(&currentStepSize, stepSizes[note]>>(4-oct), __ATOMIC_RELAXED);
+                }else{
+                    __atomic_store_n(&currentStepSize, stepSizes[note]<<(oct-4), __ATOMIC_RELAXED);
+                }
+            }
         }
         else if (inMsg[0] == 'R')
         {
-            externalPress = false;
-            __atomic_store_n(&currentStepSize, 0, __ATOMIC_RELAXED);
-            __atomic_store_n(&noteIndex, 12, __ATOMIC_RELAXED);
+            if(masterMode == true){
+                externalPress = false;
+                __atomic_store_n(&currentStepSize, 0, __ATOMIC_RELAXED);
+                __atomic_store_n(&noteIndex, 12, __ATOMIC_RELAXED);
+            }
         }
         else if (inMsg[0] == 'C')
         {
@@ -522,7 +515,15 @@ void canDecodeTask(void *pvParameters)
             uint8_t Master_OCT = inMsg[1];
             // Should test out west detect/east detect to finish this function
             // if(CanMode == 2){}
-            octave = Master_OCT +1;
+            if(slaveMode == true){
+              octave = Master_OCT +1;
+            }
+            Serial.println(CanMode);
+            if (CanMode == 0){
+              TX_Message[0] = 'C';
+              TX_Message[1] = octave;
+              xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
+            }
             // A more advanced functionality would be
             // using the second board's speaker to play beats
         }
@@ -547,6 +548,9 @@ void CAN_TX_ISR(void)
 
 void setup()
 {
+    // Initialising knob class
+
+
     // put your setup code here, to run once:
     // Set pin directions
     pinMode(RA0_PIN, OUTPUT);
