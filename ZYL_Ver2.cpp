@@ -10,11 +10,11 @@ const uint32_t interval = 100; // Display update interval
 volatile int32_t currentStepSize;
 volatile String currentNote;
 volatile uint8_t noteIndex;
-uint8_t volume = 12; // range from 0 to 16
-uint8_t octave = 4;  // range from 0 to 16
-uint8_t octave_multi = 8;
-uint8_t var0 = 0;
-uint8_t var1 = 0;
+volatile uint8_t volume = 12; // range from 0 to 16
+volatile uint8_t octave = 4;  // range from 0 to 16
+// uint8_t octave_multi = 8;
+volatile uint8_t var0 = 0;
+volatile uint8_t var1 = 0;
 uint8_t CanMode;
 bool masterMode = false;
 bool slaveMode = false;
@@ -27,6 +27,12 @@ uint8_t TX_Message[8] = {0};
 QueueHandle_t msgInQ;
 QueueHandle_t msgOutQ;
 SemaphoreHandle_t CAN_TX_Semaphore;
+
+volatile uint8_t knobState = 0;
+volatile uint8_t knob3_stat = 0;
+volatile uint8_t knob2_stat = 0;
+volatile uint8_t knob1_stat = 0;
+volatile uint8_t knob0_stat = 0;
 
 // Initialize knob decoder 
 knob_decoder* Decoder3 = new knob_decoder(12,16,0);
@@ -242,11 +248,11 @@ void scanKeysTask(void *pvParameters)
     // FIXME: Here the type of variables need to be optimized
     const TickType_t xFrequency = 50 / portTICK_PERIOD_MS;
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    volatile uint8_t knobState = 0;
-    volatile uint8_t knob3_stat = 0;
-    volatile uint8_t knob2_stat = 0;
-    volatile uint8_t knob1_stat = 0;
-    volatile uint8_t knob0_stat = 0;
+    // uint8_t localknobState = knobState;
+    // uint8_t localknob3_stat = knob3_stat;
+    // uint8_t localknob2_stat = knob2_stat;
+    // uint8_t localknob1_stat = knob1_stat;
+    // uint8_t localknob0_stat = knob0_stat;
     uint16_t keyNum = 12;
     uint16_t keyNum_Pre = -1;
     uint16_t keysBytes = 0;
@@ -365,10 +371,10 @@ void scanKeysTask(void *pvParameters)
         Decoder2->update((keyArray[3] & 0b00001100) >> 2);
         Decoder1->update( keyArray[4] & 0b00000011);
         Decoder0->update((keyArray[4] & 0b00001100) >> 2);
-        volume = Decoder3->get_val();
-        octave = Decoder2->get_val();
-        var1 = Decoder1->get_val();
-        var0 = Decoder0->get_val();
+        __atomic_store_n(&volume,Decoder3->get_val(),__ATOMIC_RELAXED);
+        __atomic_store_n(&octave,Decoder2->get_val(),__ATOMIC_RELAXED);
+        __atomic_store_n(&var1,Decoder1->get_val(),__ATOMIC_RELAXED);
+        __atomic_store_n(&var0,Decoder0->get_val(),__ATOMIC_RELAXED);
 
         // Handling the knob press
         if ((keyArray[5] & 0b00000001) == 0)
