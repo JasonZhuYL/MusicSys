@@ -58,14 +58,18 @@ void knob_decoder::update(const uint8_t current)
         if(standardised_current==1){
             rotationValue += 1;
         }else if(standardised_current == 2){
-            rotationValue -= 1;
+            if(rotationValue>0){
+                rotationValue -= 1;
+            }
         }
         else{}
     }else{
         if (standardised_current ==3){
             rotationValue += 1;
         }else if(standardised_current ==0){
-            rotationValue -= 1;
+            if(rotationValue>0){
+                rotationValue -= 1;
+            }
         }else {}
     }
     if (rotationValue > upper_limit)
