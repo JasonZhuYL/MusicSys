@@ -589,7 +589,7 @@ void displayUpdateTask(void *pvParameters)
 
         
             // Third line in display;
-            u8g2.setCursor(30, 30);
+
             u8g2.drawStr(2, 30, Filter_display[filter_mode].c_str());
             u8g2.print(var0,DEC);
 
