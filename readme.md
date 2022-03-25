@@ -3,7 +3,7 @@
 
 - [1. Embedded System Coursework 2 - Group Hex Future](#1-embedded-system-coursework-2---group-hex-future)
   - [## 1.1. Core Functionality and Specifications](#-11-core-functionality-and-specifications)
-  - [## 1.2. Identification of all tasks that are performed by the system with   their method of implementation, thread or interrupt](#-12-identification-of-all-tasks-that-are-performed-by-the-system-with---their-method-of-implementation-thread-or-interrupt)
+  - [## 1.2. Identification of Tasks](#-12-identification-of-tasks)
 - [Advanced Features](#advanced-features)
   - [## 2.1 Low & High Pass Filter](#-21-low--high-pass-filter)
   - [## 2.2 Reverb](#-22-reverb)
@@ -11,6 +11,7 @@
   - [## 2.4 Keyboard Auto-Detect through Handshake Signals](#-24-keyboard-auto-detect-through-handshake-signals)
   - [## 2.5 Intuitive Distributed User Interface](#-25-intuitive-distributed-user-interface)
   - [## 2.6 Waveform Selection](#-26-waveform-selection)
+  - [## 2.7 Pre-Programmed Music](#-27-pre-programmed-music)
 
 ## 1.1. Core Functionality and Specifications
 --------------------------------------
@@ -19,7 +20,7 @@ The following section will descript the core functionality requested by the spec
 
 <br />
 
-## 1.2. Identification of all tasks that are performed by the system with   their method of implementation, thread or interrupt
+## 1.2. Identification of Tasks
 --------------------------------------
 
 <b>SampleISR</b>:  Produce notes in different waveforms in response to different key press
@@ -258,4 +259,11 @@ void sampleISR()
 ```
 </details>
 
+## 2.7 Pre-Programmed Music 
+--------------------------------------
+
+Twinkle Twinkle Little Star are programmed into Knob 3 where play music functionality is a thread by itself.
+
+
+**Pressing of Knob 3**: To play Twinkle Twinkle Little Star
 
