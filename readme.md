@@ -1,10 +1,13 @@
 # 1. Embedded System Coursework 2 - Group Hex Future
 
 
+
 - [1. Embedded System Coursework 2 - Group Hex Future](#1-embedded-system-coursework-2---group-hex-future)
   - [## 1.1. Core Functionality and Specifications](#-11-core-functionality-and-specifications)
-  - [## 1.2. Identification of Tasks](#-12-identification-of-tasks)
+  - [## 1.2. Identification and Summarisation of Tasks](#-12-identification-and-summarisation-of-tasks)
   - [## 1.3. Critical Time Analysis with Initiation Intervals and Execution Time with Quantification of CPU Utilisation](#-13-critical-time-analysis-with-initiation-intervals-and-execution-time-with-quantification-of-cpu-utilisation)
+  - [## 1.4. Shared Data Structures and Methods for Safe Access & Synchronisation](#-14-shared-data-structures-and-methods-for-safe-access--synchronisation)
+  - [## 1.5 Analysis of inter-task blocking dependencies](#-15-analysis-of-inter-task-blocking-dependencies)
 - [Advanced Features](#advanced-features)
   - [## 2.1 Low & High Pass Filter](#-21-low--high-pass-filter)
   - [## 2.2 Reverb](#-22-reverb)
@@ -14,15 +17,21 @@
   - [## 2.6 Intuitive Distributed User Interface](#-26-intuitive-distributed-user-interface)
   - [## 2.6 Waveform Selection](#-26-waveform-selection)
   - [## 2.7 Pre-Programmed Music](#-27-pre-programmed-music)
+  - [## 3. Appreciation & Reflection](#-3-appreciation--reflection)
 
 ## 1.1. Core Functionality and Specifications
 --------------------------------------
 
 The following section will descript the core functionality requested by the specification document.
 
+[<img src="Thumbnail2-overlay.png">](https://youtu.be/liQCLkLKoVk/)
+
+
+URL: https://youtu.be/liQCLkLKoVk
+
 <br />
 
-## 1.2. Identification of Tasks
+## 1.2. Identification and Summarisation of Tasks
 --------------------------------------
 
 <b>SampleISR</b>:  Produce notes in different waveforms in response to different key press
@@ -67,7 +76,7 @@ Table 1: Summary of Tasks with Types and Priority
 | CAN_TxTask     |         21 μs         |             30 ms             |           0.07 ms            |         0.07%          |
 | DisplayTask    |        18.5 ms        |      $\tau_n$ =  100 ms       |           18.5 ms            |         18.5%          |
 | ScanKeysTask   |         73 μs         |             50 ms             |           0.146 ms           |         0.146%         |
-|          |                       |              Total                    |     47.38 ms < $\tau_n$      |         47.38%         |
+|                |                       |             Total             |     47.38 ms < $\tau_n$      |         47.38%         |
 
 Table 2: Critical Time Analysis of Tasks with CPU Utilisation Results
 
@@ -80,6 +89,42 @@ In Table 2, it is observed that CAN_DecodeTask, CAN_TxTask and ScanKeysTask util
 To analyse further, since SampleISR is required to be called for 13 μs for every 45.45 initiation interval. Therefore, SampleISR took up 28.6% of CPU with only 71.6% left to be used for more significant task like DisplayTask. In this case, 18.5% is used for DisplayTask with approximately 50% of CPU left unused. This means that deadline will be met under worst case condition in our design. To further improve our design, more threads can be created to handle different tasks as well as queues to buffer messages.
 
 To conclude, the results is sensible where SampleISR takes up more CPU resources since SampleISR is executed very frequently.
+
+<br />
+
+## 1.4. Shared Data Structures and Methods for Safe Access & Synchronisation
+--------------------------------------
+We defined various global variables and used many methods to guarantee safe access and syn- chronization. Volatile arrays (such as the keyArray, globalkeyArray and serialkeyArray) that are shared by multiple threads are protected using mutexs; volatile integers and other smaller types (such as the knob rotation counter, status indicator and etc.) are protected using atomic stores and loads; dynamic objects (such as the knob decoder class) are protected by enforcing into reentrant member functions. Information that are passed between tasks are guarded by queues.
+For examplem the Table below shows the number of shared data structures in each task. Sam- pleISR only reads the data and as an interrupt it cannot be interrupted by anything else; therefore, no methods are applied. Data structures like globalkeypressed[12] which indicate the key-press sta- tus for each key (for polyphony purposes) are guarded by mutex since they can be accessed by both ScankeyTask and DisplayTask. As another example, knob0_pressed, which is a bool vari- able indicating whether knob0 has been pushed, is guarded by using atomic loads and stores in Playmusic and ScanKeyTask.
+
+<center>
+
+| Tasks          | Number of Shared Data Structure | Usage | Methods of Safe Guard |
+| :------------- | :-----------------------------: | :---: | :-------------------: |
+| SampleISR      |                                 |       |                       |
+| CAN_DecodeTask |                                 |       |                       |
+| CAN_TxTask     |                                 |       |                       |
+| DisplayTask    |                                 |       |                       |
+| ScanKeysTask   |                                 |       |                       |
+
+Table 3: Summary of Shared Data Structure and Methods of Safe Guard
+
+</center>
+
+<br />
+
+## 1.5 Analysis of inter-task blocking dependencies
+--------------------------------------
+
+We use mutex and atomic processes to prevent the global variables being accessed by other tasks when read/ writen by a task. Dependencies are anything that can cause a task to block. Inter-task blocking dependencies happen when a thread need to read or write a global variable that is also accessed by another thread. Therefore, we need to consider the dependencies of all tasks and ensure that there's no cycles in the dependency graph, which can lead to deadlock.
+
+For Example, SampleISR and ScanKeyTask have inter-task dependencies because they all access some common global variables. SampleISR waits ScanKeyTask to update the filter_mode to know whether it should output a Vout that is filtered or not. Also, it needs to wait for ScanKeyTask to set the keypressed variable to know which note to play.
+
+Another example is that CAN_TxTask needs to wait for ScanKeyTasks to write the volume value. CAN_TxTask reads the value and transmits it. Another board's CAN_DecodeTask thread then recieves the value and decodes it. Then, the SampleISR thread on the other board uses the decoded value to output the correct volume. This way, we can adjust the settings on all boards using only the controls of one board.
+
+We do not have the risk of deadlock because our dependency graph does not have 1-direction closed cycle. 
+
+![alt text](Slide1.png)
 
 # Advanced Features
 
@@ -326,4 +371,10 @@ Twinkle Twinkle Little Star are programmed into Knob 3 where play music function
 
 
 **Pressing of Knob 3**: To play Twinkle Twinkle Little Star
+
+
+
+
+## 3. Appreciation & Reflection
+--------------------------------------
 
