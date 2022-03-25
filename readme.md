@@ -1,4 +1,11 @@
+# Attention for Submission
+
+Submission Folder: project_file
+<br />
+Submission file: 
+firmware.bin
 # 1. Embedded System Coursework 2 - Group Hex Future
+- [Attention for Submission](#attention-for-submission)
 - [1. Embedded System Coursework 2 - Group Hex Future](#1-embedded-system-coursework-2---group-hex-future)
   - [1.1. Core Functionality and Specifications](#11-core-functionality-and-specifications)
   - [1.2. Identification and Summarisation of Tasks](#12-identification-and-summarisation-of-tasks)
@@ -65,7 +72,7 @@ Table 1: Summary of Tasks with Types and Priority
 
 <center>
 
-| Tasks          | Execution Time, $T_i$ | Initiation Interval, $\tau_i$ | $[\frac{\tau_n}{\tau_i}]T_i$ | $[\frac{T_i}{\tau_i}]$ |
+| Tasks          | Execution Time, $T_i$ | Initiation Interval, \tau_i | [\frac{\tau_n}{\tau_i}]T_i | [\frac{T_i}{\tau_i}] |
 | :------------- | :-------------------: | :---------------------------: | :--------------------------: | :--------------------: |
 | SampleISR      |         13 μs         |           45.45 μs            |           28.6 ms            |         28.6%          |
 | CAN_DecodeTask |         16 μs         |             25 ms             |           0.064 ms           |         0.064%         |
