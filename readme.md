@@ -72,14 +72,14 @@ Table 1: Summary of Tasks with Types and Priority
  h<sub>&theta;</sub>(x) = &theta;<sub>o</sub> x + &theta;<sub>1</sub>x
 <center>
 
-| Tasks          | Execution Time, T<sub>i | Initiation Interval, τ<sub>i | $[\frac{\tau_n}{\tau_i}]T_i$ | $[\frac{T_i}{\tau_i}]$ |
+| Tasks          | Execution Time, T<sub>i | Initiation Interval, τ<sub>i | [τ<sub>n</sub> / τ<sub>i</sub> ] * T<sub>i | T<sub>i</sub>  / τ<sub>i</sub>  |
 | :------------- | :-------------------: | :---------------------------: | :--------------------------: | :--------------------: |
 | SampleISR      |         13 μs         |           45.45 μs            |           28.6 ms            |         28.6%          |
 | CAN_DecodeTask |         16 μs         |             25 ms             |           0.064 ms           |         0.064%         |
 | CAN_TxTask     |         21 μs         |             30 ms             |           0.07 ms            |         0.07%          |
-| DisplayTask    |        18.5 ms        |      $\tau_n$ =  100 ms       |           18.5 ms            |         18.5%          |
+| DisplayTask    |        18.5 ms        |      τ<sub>n</sub>  =  100 ms       |           18.5 ms            |         18.5%          |
 | ScanKeysTask   |         73 μs         |             50 ms             |           0.146 ms           |         0.146%         |
-|                |                       |             Total             |     47.38 ms < $\tau_n$      |         47.38%         |
+|                |                       |             Total             |     47.38 ms < τ<sub>n</sub>       |         47.38%         |
 
 Table 2: Critical Time Analysis of Tasks with CPU Utilisation Results
 
