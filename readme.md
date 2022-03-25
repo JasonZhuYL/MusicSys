@@ -4,7 +4,7 @@
 - [1. Embedded System Coursework 2 - Group Hex Future](#1-embedded-system-coursework-2---group-hex-future)
   - [## 1.1. Core Functionality and Specifications](#-11-core-functionality-and-specifications)
   - [## 1.2. Identification of Tasks](#-12-identification-of-tasks)
-  - [## 1.3. Critical Time Analysis with Initiation Intervals and Execution Time](#-13-critical-time-analysis-with-initiation-intervals-and-execution-time)
+  - [## 1.3. Critical Time Analysis with Initiation Intervals and Execution Time with Quantification of CPU Utilisation](#-13-critical-time-analysis-with-initiation-intervals-and-execution-time-with-quantification-of-cpu-utilisation)
 - [Advanced Features](#advanced-features)
   - [## 2.1 Low & High Pass Filter](#-21-low--high-pass-filter)
   - [## 2.2 Reverb](#-22-reverb)
@@ -46,17 +46,17 @@ Overall, <b>1 interrupt and 5 threads</b> are used for the music synthesiser. Ta
 | Tasks          |   Types   | Priority |
 | :------------- | :-------: | :------: |
 | SampleISR      | Interrupt | Highest  |
-| PlayMusic      |  Thread   |    1     |
-| CAN_DecodeTask |  Thread   |    2     |
-| CAN_TxTask     |  Thread   |    3     |
-| DisplayTask    |  Thread   |    4     |
-| ScanKeysTask   |  Thread   |    5     |
+| ScanKeysTask   |  Thread   |    1     |
+| DisplayTask    |  Thread   |    2     |
+| CAN_DecodeTask |  Thread   |    3     |
+| CAN_TxTask     |  Thread   |    4     |
 
 Table 1: Summary of Tasks with Types and Priority
 </center>
 
+<br />
 
-## 1.3. Critical Time Analysis with Initiation Intervals and Execution Time
+## 1.3. Critical Time Analysis with Initiation Intervals and Execution Time with Quantification of CPU Utilisation
 --------------------------------------
 <center>
 
@@ -70,11 +70,16 @@ Table 1: Summary of Tasks with Types and Priority
 |          |                       |              Total                    |     47.38 ms < $\tau_n$      |         47.38%         |
 
 Table 2: Critical Time Analysis of Tasks with CPU Utilisation Results
+
 </center>
+
+<br />
 
 In Table 2, it is observed that CAN_DecodeTask, CAN_TxTask and ScanKeysTask utilise very little CPU resource in this music synthesiser. As a result, these 3 tasks have insignificant influence to rate monotonic scheduler. 
 
-To analyse further, since SampleISR is required to be called for 13 μs for every 45.45 initiation interval. Therefore, SampleISR took up 28.6% of CPU with only 71.6% left to be used for more significant tasks like DisplayTask and ScanKeysTaks. 
+To analyse further, since SampleISR is required to be called for 13 μs for every 45.45 initiation interval. Therefore, SampleISR took up 28.6% of CPU with only 71.6% left to be used for more significant task like DisplayTask. In this case, 18.5% is used for DisplayTask with approximately 50% of CPU left unused. This means that deadline will be met under worst case condition in our design. To further improve our design, more threads can be created to handle different tasks as well as queues to buffer messages.
+
+To conclude, the results is sensible where SampleISR takes up more CPU resources since SampleISR is executed very frequently.
 
 # Advanced Features
 
