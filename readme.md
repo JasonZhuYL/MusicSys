@@ -97,7 +97,7 @@ To conclude, the results is sensible where SampleISR takes up more CPU resources
 
 ## 1.4. Shared Data Structures and Methods for Safe Access & Synchronisation
 
-Shared data structures and methods for safe access and synchronisation is a very important part of real-time programming, as some global variable can be accessed by multiple threads. Mutex and atomic processes are used to protect the global variables when reading/ writing. Also, where possible, we create a local copy of the global variable.
+Shared data structures and methods for safe access and synchronisation is a very important part of real-time programming, as some global variable can be accessed by multiple threads. Mutex and atomic processes are used to protect the global variables when reading/ writing. Also, we create a local copy of the global variable to minimise the number of access to global variable.
 
 If a globle variable is not protected while being written, another thread can read the variable and get a wrong value. By using mutex and atomic processes for shared data structures and methods, we ensure safe access & synchronisation. For example, the reverb_switch variable is written using atomic_store in ScanKeysTask. And it is read using atomic_load in SampleISR to create a local copy.
 
