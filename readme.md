@@ -38,18 +38,16 @@ URL: https://youtu.be/liQCLkLKoVk
 
 <b>SampleISR</b>:  Produce notes in different waveforms in response to different key press
 <br />
-<b>PlayMusic</b>: Play pre-programmed music note when designated knob is pressed
-<br />
 <b>CAN_DecodeTask</b>: Decode messages related CAN communication for transimission purpose
 <br />
-<b>CAN_TxTask</b>: Transmit CAN bus messages for playing and ending a note
+<b>CAN_TxTask</b>: Transmit CAN bus messages for notes' change and other functionality setting changes.
 <br />
 <b>DisplayTask</b>: Display information about music synthesiser setting in real-time
 <br />
-<b>ScanKeysTask</b>: Read any changes in inputs and update the variables in the software
+<b>ScanKeysTask</b>: Read any changes in inputs and update the variables
 
 <br />
-Overall, <b>1 interrupt and 5 threads</b> are used for the music synthesiser. Table 1 below summarise the tasks with type and priority.
+Overall, <b>1 interrupt and 4 threads</b> are used for the music synthesiser. Table 1 below summarise the tasks with type and priority.
 
 <br />
 
@@ -58,10 +56,10 @@ Overall, <b>1 interrupt and 5 threads</b> are used for the music synthesiser. Ta
 | Tasks          |   Types   | Priority |
 | :------------- | :-------: | :------: |
 | SampleISR      | Interrupt | Highest  |
-| ScanKeysTask   |  Thread   |    1     |
-| DisplayTask    |  Thread   |    2     |
-| CAN_DecodeTask |  Thread   |    3     |
-| CAN_TxTask     |  Thread   |    4     |
+| CAN_DecodeTask |  Thread   |    1     |
+| CAN_TxTask     |  Thread   |    2     |
+| ScanKeysTask   |  Thread   |    3     |
+| DisplayTask    |  Thread   |    4     |
 
 Table 1: Summary of Tasks with Types and Priority
 </center>
@@ -87,7 +85,7 @@ Table 2: Critical Time Analysis of Tasks with CPU Utilisation Results
 
 <br />
 
-In Table 2, it is observed that CAN_DecodeTask, CAN_TxTask and ScanKeysTask utilise very little CPU resource in this music synthesiser. As a result, these 3 tasks have insignificant influence to rate monotonic scheduler. 
+In Table 2, it is observed that CAN_DecodeTask, CAN_TxTask and ScanKeysTask utilise less than 1% CPU resource in this music synthesiser. As a result, these 3 tasks have insignificant influence to rate monotonic scheduler. 
 
 To analyse further, since SampleISR is required to be called for 13 μs for every 45.45 initiation interval. Therefore, SampleISR took up 28.6% of CPU with only 71.6% left to be used for more significant task like DisplayTask. In this case, 18.5% is used for DisplayTask with approximately 50% of CPU left unused. This means that deadline will be met under worst case condition in our design. To further improve our design, more threads can be created to handle different tasks as well as queues to buffer messages.
 
@@ -138,6 +136,8 @@ We do not have the risk of deadlock because our dependency graph does not have 1
 
 To enable music note manipulation, Low Pass and High Pass Filtering of music signal are implemented. 
 
+e.g. LPF significantly filters down the volume of higher notes when the filter intensity is set to 9. \
+
 **Pressing** **of** **Knob** **0**: To switch between **No Filter (NONE), Low Pass Filter (LPF), High Pass Filter (HPF)**.
 <br />
 **Turning of Knob 0**: To adjust the intensity of different filtering ranging from 0-9
@@ -169,12 +169,14 @@ const uint8_t hpf[10][12] = {
 ,{1,1,1,1,2,3,4,5,6,7,8,9}
 };
 ```
-
+Filter now supports a single piano module. When multiple modules are connected, only the left-most module is filtered.
 
 ## 2.2. Reverb
 
 
 Reverb is the effect where a sound seems to be produced in a room. Reverb is created using an array of size 51 to store previous Vout values. By replaying 3 elements of the array at different volume with the current Vout value, we can emulate the sound reflection in a room.
+
+By pressing down the joy stick, reverb can be turned on or off.
 
 ```C++
 //*******   Reverb  ***********
@@ -196,11 +198,11 @@ The part of code is implemented within **SampleISR()** function and is adapted f
 
 Polyphony, in music, is the simultaneous combination of two or more tones. In our music synthesiser, the sound of music notes will be produced respectively by the speakers of corresponding board where the keys are pressed. This enables polyphony with Stereo Sound where combination of music notes are much more similar to real piano.
 
-Clipping of speaker is avoided using Stereo Sound system. Having notes played from different speakers allows a larger number of notes to be played at the same time without clipping. 
+Having notes played from different speakers allows a larger number of notes to be played at the same time without clipping. 
 
 ## 2.4. Keyboard Auto-Detect through Handshake Signals
 
-When west detect or east detect bit changed, the board would notice that the overall board arrangement has changed. The board on the left will always initiate a handshake. For example, 1 board extens to 2, the board on the left would initiate the handshake. 2 boards extends to 3 boards, the second board would initiate the handshake to inform others its existance. Since the left board always initiate the handshake, only the board on the right would accept this message. This is done by assigning the second bit in the handshake message as the boards' position (range from 1 to 3). After handshake, each board would know its accurate position in the overall board arrangement. 
+When west detect or east detect bit changes, the board would notice that the overall board arrangement has changed. The board on the left will always initiate a handshake. For example, if only two boards are connected together, the board on the left would initiate the handshake. If three boards are connected, the second board would initiate the handshake to inform others of its existance. Since the left board always initiate the handshake, only the board on the right would accept this message. This is done by assigning the second byte in the handshake message as the boards' position (range from 1 to 3). After handshake, each board would know its accurate position in the overall board arrangement. 
 
 ## 2.5. CAN Communication Messages
 
@@ -216,16 +218,15 @@ When west detect or east detect bit changed, the board would notice that the ove
     2. octave
     3. volume 
     4. waveform_mode
-    5. reverb_switch
+    5. reverb_switch  <br />
+    
+   Each time when octave/volume/waveform/reverb changes in the left-most board, a CAN message starting with 'C' (standing for Configuration) would be broadcast to the network. Since each board knows its location, they would adjust their octave based on their location. 
 
-
-
-Each time when octave/volume/waveform/reverb changed in the leading board a CAN message starting with 'C' would be broadcast to the network. Since each board knows its location, they would adjust their octave based on their location. 
 
 3. Pressed Message  <br />
 
 
-    All the pressed keys will be displayed in the second board if there is one. The message would contain sender's board_location and keys pressed. The 12 keys are represented in a 12 bit number that stored in the third and fourth byte in the TX message. The second board would derive each key's ocatve based on the sender's board location 
+    All the pressed keys will be displayed in the second board if there is one. The message would contain sender's board_location and keys pressed. The 12 keys are represented in a 12 bit number that are stored in the third and fourth byte in the TX message. The second board would show each key's ocatve based on the sender's board location.
 
 
 
@@ -234,7 +235,7 @@ Each time when octave/volume/waveform/reverb changed in the leading board a CAN 
 
 When multiple boards are connected together, the left-most module becomes the main display, showing whether certain functionalities are on or off. When two boards are connected, the second board from the left recieves all the pressed notes information from the other board(s). The seoncd board module from the left becomes the secondary display, showing all notes played on all modules at their respective octaves. If all three modules are connnected, the right-most module's display is not used. 
 
-Via CAN bus, when the knobs are pressed or rotated on the left-most board. Functionalities like reverb can be turned on or off. Also, the volume or the octave can be changes on the main board. The information will be trainsmitted to the other boards via CAN messages. Therefore, the settings of all three modules can be changed on a single board.
+Foe example, via CAN bus, when the knobs are pressed or rotated on the left-most board, functionalities like reverb can be turned on or off. Also, the volume or the octave can be changes on the main board. The information will be trainsmitted to the other boards via CAN messages. Therefore, the settings of all three modules can be changed on a single board.
 
 ## 2.7. Waveform Selection
 
@@ -250,7 +251,7 @@ Waveforms such as Square and Triangle waves are implemented in addition to Sawto
 Twinkle Twinkle Little Star are programmed into Knob 3 where play music functionality is a thread by itself.
 
 
-**Pressing of Knob 3**: To play Twinkle Twinkle Little Star
+**Pressing of Knob 2**: To play Twinkle Twinkle Little Star
 
 
 
