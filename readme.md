@@ -197,28 +197,30 @@ When west detect or east detect bit changed, the board would notice that the ove
 
 ## 2.5. CAN Communication Messages
 
-1. Handshake 
-    The main purpose of handshake is to inform others its location, octave, and volume 
-    //CODE here 
+1. Handshake  <br />
 
-2. Configuration Change
+
+    The main purpose of handshake is to inform others its location, octave, and volume  
+
+2. Configuration Change  <br />
+
     Message contains:
     1. board location (for future use)
     2. octave
     3. volume 
     4. waveform_mode
     5. reverb_switch
-    //CODE here
+
+
+
 Each time when octave/volume/waveform/reverb changed in the leading board a CAN message starting with 'C' would be broadcast to the network. Since each board knows its location, they would adjust their octave based on their location. 
 
-3. Pressed Message 
-    All the pressed keys will be displayed in the second board if there is one. The message would contain sender's board_location and keys pressed. The 12 keys are represented in a 12 bit number that stored in the third and fourth byte in the TX message. The second board would derive each key's ocatve based on the sender's board location 
-    // CODE here
+3. Pressed Message  <br />
 
-How functionality switches are transmiitted? \
-Functionality switches
-How values of different functionalities are transmitted? \
-How are notes, octave transmitted. 
+
+    All the pressed keys will be displayed in the second board if there is one. The message would contain sender's board_location and keys pressed. The 12 keys are represented in a 12 bit number that stored in the third and fourth byte in the TX message. The second board would derive each key's ocatve based on the sender's board location 
+
+
 
 
 ## 2.6. Intuitive Distributed User Interface
