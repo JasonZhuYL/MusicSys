@@ -40,23 +40,28 @@ volatile uint32_t currentStepSize[] = {0,0,0,0,0,0,0,0,0,0,0,0};
 volatile uint8_t keypressed_pointer = 0;
 uint8_t volume = 12; // range from 0 to 16
 uint8_t octave = 4;  // range from 0 to 16
+uint8_t var0 = 0;
+uint8_t waveform_mode = 0;
+uint8_t reverb_switch = 0;
+
+//Previous values 
+uint8_t waveform_mode_pre = 0;
 uint8_t volume_pre = 12; // range from 0 to 16
 uint8_t octave_pre = 4;  // range from 0 to 16
-uint8_t var0 = 0;
-//new var
-uint8_t waveform_mode = 0;
-uint8_t waveform_mode_pre = 0;
-uint8_t reverb_switch = 0;
+uint8_t pos_raw_pre=3;
+uint8_t keypressed_pointer_pre = 12;
+uint16_t keysBytes_Pre = 0xFFFF;
+uint16_t keysBytes_B1 = 0xFFFF;
+uint16_t keysBytes_B3 = 0xFFFF;
 
 
 uint8_t board_location = 1;
-uint8_t pos_raw_pre=3;
 bool lpf_enable = false;
 bool hpf_enable = false;
 const int32_t stepSizes[] = {262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 0};
 // const int32_t stepSizes[] = {32, 34, 36, 39, 41, 43, 46, 49, 52, 55, 58, 62, 0};
 const String note[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", ""};
-const String Filter_display[]= {"NUL","LPF","HPF"};
+const String Filter_display[]= {"NONE","LPF","HPF"};
 const String wave_display[] = {"Sawtooth","Triangular","Square"};
 const String reverb_display[] = {"Reverb off","Reverb on"};
 uint8_t filter_mode = 0;
@@ -64,6 +69,8 @@ uint8_t TX_Message[8] = {0};
 QueueHandle_t msgInQ;
 QueueHandle_t msgOutQ;
 SemaphoreHandle_t CAN_TX_Semaphore;
+
+volatile static bool knob2_pressed = false;
 
 // Initialize knob decoder 
 knob_decoder* Decoder3 = new knob_decoder(12,16,0);
@@ -340,28 +347,41 @@ int noteDemux(int note)
     }
 }
 
-void play_Twinkle_star()
-{
-    uint8_t twinkleStar[] = {1, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1, 8, 8, 6, 6, 5, 5, 3, 8, 8, 6, 6, 5, 5, 3, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1};
-    keypressed_pointer=1;
-    for (int i = 0; i < 43; i++)
-    {
-        if ((i + 1) % 7 == 0)
-        {
-            __atomic_store_n(&currentStepSize[0], stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
-            delayMicroseconds(200000);
-            __atomic_store_n(&currentStepSize[0], 0, __ATOMIC_RELAXED);
-            delayMicroseconds(150000);
-        }
-        else
-        {
-            __atomic_store_n(&currentStepSize[0], stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
-            delayMicroseconds(200000);
-            __atomic_store_n(&currentStepSize[0], 0, __ATOMIC_RELAXED);
-            delayMicroseconds(100000);
-        }
-    }
-}
+// void play_Twinkle_star(){
+//     uint8_t twinkleStar[] = {1, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1, 8, 8, 6, 6, 5, 5, 3, 8, 8, 6, 6, 5, 5, 3, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1};
+//     keypressed_pointer=1;
+//     for (int i = 0; i < 43; i++)
+//     {
+//         if ((i + 1) % 7 == 0)
+//         {
+//             __atomic_store_n(&currentStepSize[0], stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
+//             delayMicroseconds(200000);
+//             __atomic_store_n(&currentStepSize[0], 0, __ATOMIC_RELAXED);
+//             delayMicroseconds(150000);
+//         }
+//         else
+//         {
+//             __atomic_store_n(&currentStepSize[0], stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
+//             delayMicroseconds(200000);
+//             __atomic_store_n(&currentStepSize[0], 0, __ATOMIC_RELAXED);
+//             delayMicroseconds(100000);
+//         }
+//     }
+// }
+
+// void play_music(void *pvParameters)
+// {
+//     const TickType_t xFrequency = 1 / portTICK_PERIOD_MS;
+//     TickType_t xLastWakeTime = xTaskGetTickCount();
+    
+//     while(1){
+//         vTaskDelayUntil(&xLastWakeTime, xFrequency);
+//         if(__atomic_load_n(&knob2_pressed, __ATOMIC_RELAXED) == true){
+//             play_Twinkle_star();
+//         }
+//     }
+// }
+
 
 // void play_QinTian()
 // {
@@ -376,7 +396,7 @@ void play_Twinkle_star()
 //         {
 //             current = stepSizes[noteDemux(qts[i])] / 2;
 //         }
-//         else
+//         else     
 //         {
 //             current = stepSizes[noteDemux(qts[i])];
 //         }
@@ -408,13 +428,9 @@ void configVO(){
 }
 void sendNotes(){
     TX_Message[0] = 'P';
-    TX_Message[1] = keypressed[0];
-    TX_Message[2] = keypressed[1];
-    TX_Message[3] = keypressed[2];
-    TX_Message[4] = keypressed[3];
-    TX_Message[5] = keypressed[4];
-    TX_Message[6] = keypressed[5];
-    TX_Message[7] = keypressed[6];
+    TX_Message[1] = board_location; 
+    TX_Message[2] = (keysBytes_Pre>>6);
+    TX_Message[3] = (keysBytes_Pre&0x003F);
     xQueueSend(msgOutQ, TX_Message, portMAX_DELAY);
     Serial.println("Notes pressed message sent");
 }
@@ -424,10 +440,10 @@ void scanKeysTask(void *pvParameters)
     const TickType_t xFrequency = 50 / portTICK_PERIOD_MS;
     TickType_t xLastWakeTime = xTaskGetTickCount();
     uint16_t keysBytes = 0;
-    uint16_t keysBytes_Pre = 0;
     uint16_t keysBytes_Changed;
 
-    uint8_t keypressed_pointer_pre = 12;
+
+
     while (1)
     {
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -443,14 +459,14 @@ void scanKeysTask(void *pvParameters)
 
         keysBytes = (keyArray[2] << 8) | (keyArray[1] << 4) | keyArray[0];
         // ^ is the XOR operator
-        if (keysBytes == 0x0FFF)
-        {
-            // nothing is pressed
-            keysBytes_Pre = 0x0FFF;
-            keypressed_pointer = 0;
-        }
-        else
-        {
+        // if (keysBytes == 0x0FFF)
+        // {
+        //     // nothing is pressed
+        //     keysBytes_Pre = 0x0FFF;
+        //     keypressed_pointer = 0;
+        // }
+        // else
+        // {
             // By the XOR opeartion we can see the notes that are changed
             keysBytes_Changed = keysBytes ^ keysBytes_Pre;
             if ((keysBytes_Changed) == 0){
@@ -467,8 +483,11 @@ void scanKeysTask(void *pvParameters)
                     }
                 }
                 keysBytes_Pre = keysBytes;
+                if(board_location!=2){
+                    sendNotes();
+                }
             }
-        }
+        // }
         if(keypressed_pointer >0){
             for(uint8_t i=0;i<keypressed_pointer;i++){
                 if (octave<4){
@@ -495,17 +514,21 @@ void scanKeysTask(void *pvParameters)
             volume_pre = volume;
             waveform_mode_pre = waveform_mode;
         }
-
+        
         // Handling the knob press
+
+        // keys56 = ((keyArray[5] & 0b00001111)<<4)|(keyArray[6] & 0b00001011);
+        // if(keys56 == keys56_pre){}else{
         if ((keyArray[5] & 0b00000001) == 0){
             // knob3 pressed
             if(board_location==1){
-                play_Twinkle_star();
+                // play_twinkle_star();
             }
         }
         else if ((keyArray[5] & 0b00000010) == 0){
             // knob2 pressed
             // play_Twinkle_star();
+            __atomic_store_n(&knob2_pressed, true, __ATOMIC_RELAXED);
         }
         else if ((keyArray[6] & 0b00000010) == 0){
             // knob1 pressed
@@ -565,6 +588,10 @@ void scanKeysTask(void *pvParameters)
             }
             pos_raw_pre = pos_raw;
         }
+        // keys56 = keys56_pre;
+        // Serial.println(keys56);
+        // Serial.println(keys56_pre);
+        
     }
 }
 
@@ -577,7 +604,7 @@ void displayUpdateTask(void *pvParameters)
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
         if(board_location==1){
             u8g2.clearBuffer();                 // clear the internal memory
-            u8g2.setFont(u8g2_font_ncenB08_tr); // choose a suitable font
+            u8g2.setFont(u8g2_font_6x12_mr); // choose a suitable font
 
             // First line in display
             u8g2.setCursor(28, 10);
@@ -603,15 +630,57 @@ void displayUpdateTask(void *pvParameters)
 
         
             // Third line in display
-            u8g2.drawStr(2, 30, Filter_display[filter_mode].c_str());\
-            u8g2.setCursor(40, 30);
+            u8g2.drawStr(2, 30, Filter_display[filter_mode].c_str());
+            u8g2.setCursor(30, 30);
             u8g2.print(var0,DEC);
             u8g2.drawStr(65, 30, wave_display[waveform_mode].c_str());
 
             u8g2.sendBuffer(); // transfer internal memory to the display
         }else if(board_location==2){
-            
-        
+            u8g2.clearBuffer();                 // clear the internal memory
+            u8g2.setFont(u8g2_font_6x12_mr); // choose a suitable font
+
+            u8g2.setCursor(2, 10);
+            u8g2.print("OCT");
+            u8g2.setCursor(20, 10);
+            u8g2.print(octave-1, DEC);
+            u8g2.setCursor(25, 10);
+            u8g2.print(":");
+            u8g2.setCursor(2, 20);
+            u8g2.print("OCT");
+            u8g2.setCursor(20, 20);
+            u8g2.print(octave, DEC);
+            u8g2.setCursor(25, 20);
+            u8g2.print(":");
+            u8g2.setCursor(2, 30);
+            u8g2.print("OCT");
+            u8g2.setCursor(20, 30);
+            u8g2.print(octave+1, DEC);
+            u8g2.setCursor(25, 30);
+            u8g2.print(":");
+            uint8_t indent1=0;
+            uint8_t indent2=0;
+            uint8_t indent3=0;
+            for (uint8_t i = 0; i < 12; i++)
+                {
+                    if(bitRead(keysBytes_B1,i) == 0){
+                        u8g2.drawStr(32+indent1, 10, (note[i]).c_str()); // notes of left-most board
+                        indent1+=12;
+                    }
+                    if(bitRead(keysBytes_Pre,i) == 0){
+                        u8g2.drawStr(32+indent2, 20, (note[i]).c_str()); // notes of second board from left
+                        indent2+=12;
+                    }
+                    if(bitRead(keysBytes_B3,i) == 0){
+                        u8g2.drawStr(32+indent3, 30, (note[i]).c_str()); // notes of third board from left
+                        indent3+=12;
+                    }
+                }
+
+
+            // u8g2.drawStr(2,10,"PRINT:");
+            u8g2.sendBuffer(); // transfer internal memory to the display
+
         }else{
             u8g2.clearBuffer();                 // clear the internal memory
             u8g2.sendBuffer();
@@ -636,7 +705,11 @@ void canDecodeTask(void *pvParameters)
         //Serial.println(inMsg);
         if (inMsg[0] == 'P')
         {
-            
+            if(inMsg[1]==1){
+                keysBytes_B1 = (inMsg[2]<<6)|inMsg[3];
+            }else if(inMsg[1]==3){
+                keysBytes_B3 = (inMsg[2]<<6)|inMsg[3];
+            }
         }
         else if (inMsg[0] == 'R')
         {
@@ -759,6 +832,16 @@ void setup()
         NULL,
         3,
         &canTxTaskHanle);
+
+    // TaskHandle_t playMusicHandle = NULL;
+    // xTaskCreate(
+    //     play_music,
+    //     "playMusic",
+    //     64,
+    //     NULL,
+    //     1,
+    //     &playMusicHandle
+    // );
 
     keyArrayMutex = xSemaphoreCreateMutex();
 
