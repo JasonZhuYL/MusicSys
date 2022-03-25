@@ -4,6 +4,7 @@
 - [1. Embedded System Coursework 2 - Group Hex Future](#1-embedded-system-coursework-2---group-hex-future)
   - [## 1.1. Core Functionality and Specifications](#-11-core-functionality-and-specifications)
   - [## 1.2. Identification of Tasks](#-12-identification-of-tasks)
+  - [## 1.3. Critical Time Analysis with Initiation Intervals and Execution Time](#-13-critical-time-analysis-with-initiation-intervals-and-execution-time)
 - [Advanced Features](#advanced-features)
   - [## 2.1 Low & High Pass Filter](#-21-low--high-pass-filter)
   - [## 2.2 Reverb](#-22-reverb)
@@ -41,7 +42,7 @@ Overall, <b>1 interrupt and 5 threads</b> are used for the music synthesiser. Ta
 <br />
 <center>
 
-| Task           |   Type    | Priority |
+| Tasks          |   Types   | Priority |
 | :------------- | :-------: | :------: |
 | SampleISR      | Interrupt | Highest  |
 | PlayMusic      |  Thread   |    1     |
@@ -52,6 +53,20 @@ Overall, <b>1 interrupt and 5 threads</b> are used for the music synthesiser. Ta
 
 Table 1: Summary of Tasks with Types and Priority
 </center>
+
+
+## 1.3. Critical Time Analysis with Initiation Intervals and Execution Time
+--------------------------------------
+
+| Tasks          | Execution Time, $T_i$ | Initiation Interval, $\tau_i$ |  $[\frac{\tau_n}{\tau_i}]T_i$ | $[\frac{T_i}{\tau_i}]$ |
+| :------------- | :---------------------------: | :-------------------: | :--------------------------: | :--------------------: |
+| SampleISR      |             13 μs             |       45.45 μs        |      
+| CAN_DecodeTask |             16 μs             |         25 ms         |   
+| CAN_TxTask     |             21 μs             |         30 ms         |   
+| DisplayTask    |            18.5ms             |        100 ms         |   
+| ScanKeysTask   |             73 μs             |         50 μs         |
+
+
 
 # Advanced Features
 
