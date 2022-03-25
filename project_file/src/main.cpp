@@ -752,7 +752,7 @@ void setup()
         "scanKeys",     /* Text name for the task */
         64,             /* Stack size in words, not bytes */
         NULL,           /* Parameter passed into the task */
-        1,              /* Task priority */
+        3,              /* Task priority */
         &scanKeysHandle /* Pointer to store the task handle */
     );
     TaskHandle_t displayUpdateHandle = NULL;
@@ -761,7 +761,7 @@ void setup()
         "displayUpdate",
         256,
         NULL,
-        2,
+        4,
         &displayUpdateHandle);
 
     TaskHandle_t canDecodeTaskHanle = NULL;
@@ -770,7 +770,7 @@ void setup()
         "canDecode",
         64,
         NULL,
-        3,
+        1,
         &canDecodeTaskHanle);
 
     TaskHandle_t canTxTaskHanle = NULL;
@@ -779,7 +779,7 @@ void setup()
         "canTx",
         64,
         NULL,
-        4,
+        2,
         &canTxTaskHanle);
 
     CAN_Init(false);
