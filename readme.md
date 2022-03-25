@@ -236,7 +236,6 @@ Waveforms such as Square and Triangle waves are implemented in addition to Sawto
 
 **Turning of Knob 1**: To select different waveforms
 
-<br />
 
 ## 2.8. Pre-Programmed Music 
 
