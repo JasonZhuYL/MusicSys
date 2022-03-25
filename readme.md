@@ -202,7 +202,7 @@ Having notes played from different speakers allows a larger number of notes to b
 
 ## 2.4. Keyboard Auto-Detect through Handshake Signals
 
-When west detect or east detect bit changes, the board would notice that the overall board arrangement has changed. The board on the left will always initiate a handshake. For example, if only two boards are connected together, the board on the left would initiate the handshake. If three boards are connected, the second board would initiate the handshake to inform others of its existance. Since the left board always initiate the handshake, only the board on the right would accept this message. This is done by assigning the second bit in the handshake message as the boards' position (range from 1 to 3). After handshake, each board would know its accurate position in the overall board arrangement. 
+When west detect or east detect bit changes, the board would notice that the overall board arrangement has changed. The board on the left will always initiate a handshake. For example, if only two boards are connected together, the board on the left would initiate the handshake. If three boards are connected, the second board would initiate the handshake to inform others of its existance. Since the left board always initiate the handshake, only the board on the right would accept this message. This is done by assigning the second byte in the handshake message as the boards' position (range from 1 to 3). After handshake, each board would know its accurate position in the overall board arrangement. 
 
 ## 2.5. CAN Communication Messages
 
@@ -251,7 +251,7 @@ Waveforms such as Square and Triangle waves are implemented in addition to Sawto
 Twinkle Twinkle Little Star are programmed into Knob 3 where play music functionality is a thread by itself.
 
 
-**Pressing of Knob 3**: To play Twinkle Twinkle Little Star
+**Pressing of Knob 2**: To play Twinkle Twinkle Little Star
 
 
 
