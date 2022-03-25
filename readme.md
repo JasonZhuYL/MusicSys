@@ -1,19 +1,20 @@
 # 1. Embedded System Coursework 2 - Group Hex Future
+
 - [1. Embedded System Coursework 2 - Group Hex Future](#1-embedded-system-coursework-2---group-hex-future)
-  - [## 1.1. Core Functionality and Specifications](#-11-core-functionality-and-specifications)
-  - [## 1.2. Identification and Summarisation of Tasks](#-12-identification-and-summarisation-of-tasks)
-  - [## 1.3. Critical Time Analysis with Initiation Intervals and Execution Time with Quantification of CPU Utilisation](#-13-critical-time-analysis-with-initiation-intervals-and-execution-time-with-quantification-of-cpu-utilisation)
-  - [## 1.4. Shared Data Structures and Methods for Safe Access & Synchronisation](#-14-shared-data-structures-and-methods-for-safe-access--synchronisation)
-  - [## 1.5. 1.5 Analysis of inter-task blocking dependencies](#-15-15-analysis-of-inter-task-blocking-dependencies)
+  - [1.1. Core Functionality and Specifications](#11-core-functionality-and-specifications)
+  - [1.2. Identification and Summarisation of Tasks](#12-identification-and-summarisation-of-tasks)
+  - [1.3. Critical Time Analysis with Initiation Intervals and Execution Time with Quantification of CPU Utilisation](#13-critical-time-analysis-with-initiation-intervals-and-execution-time-with-quantification-of-cpu-utilisation)
+  - [1.4. Shared Data Structures and Methods for Safe Access & Synchronisation](#14-shared-data-structures-and-methods-for-safe-access--synchronisation)
+  - [1.5. Analysis of inter-task blocking dependencies](#15-analysis-of-inter-task-blocking-dependencies)
 - [2. Advanced Features](#2-advanced-features)
-  - [## 2.1. Low & High Pass Filter](#-21-low--high-pass-filter)
-  - [## 2.2. Reverb](#-22-reverb)
-  - [## 2.3. Polyphony with Stereo Sound](#-23-polyphony-with-stereo-sound)
-  - [## 2.4. Keyboard Auto-Detect through Handshake Signals](#-24-keyboard-auto-detect-through-handshake-signals)
-  - [## 2.5. CAN Communication Messages](#-25-can-communication-messages)
-  - [## 2.6. Intuitive Distributed User Interface](#-26-intuitive-distributed-user-interface)
-  - [## 2.7. Waveform Selection](#-27-waveform-selection)
-  - [## 2.8. Pre-Programmed Music](#-28-pre-programmed-music)
+  - [2.1. Low & High Pass Filter](#21-low--high-pass-filter)
+  - [2.2. Reverb](#22-reverb)
+  - [2.3. Polyphony with Stereo Sound](#23-polyphony-with-stereo-sound)
+  - [2.4. Keyboard Auto-Detect through Handshake Signals](#24-keyboard-auto-detect-through-handshake-signals)
+  - [2.5. CAN Communication Messages](#25-can-communication-messages)
+  - [2.6. Intuitive Distributed User Interface](#26-intuitive-distributed-user-interface)
+  - [2.7. Waveform Selection](#27-waveform-selection)
+  - [2.8. Pre-Programmed Music](#28-pre-programmed-music)
 
 ## 1.1. Core Functionality and Specifications
 --------------------------------------
@@ -111,7 +112,7 @@ Table 3: Summary of Shared Data Structure and Methods of Safe Guard
 
 <br />
 
-## 1.5. 1.5 Analysis of inter-task blocking dependencies
+## 1.5. Analysis of Inter-Task Blocking dependencies
 --------------------------------------
 
 We use mutex and atomic processes to prevent the global variables being accessed by other tasks when read/ writen by a task. Dependencies are anything that can cause a task to block. Inter-task blocking dependencies happen when a thread need to read or write a global variable that is also accessed by another thread. Therefore, we need to consider the dependencies of all tasks and ensure that there's no cycles in the dependency graph, which can lead to deadlock.
