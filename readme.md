@@ -69,7 +69,7 @@ Table 1: Summary of Tasks with Types and Priority
 <br />
 
 ## 1.3. Critical Time Analysis with Initiation Intervals and Execution Time with Quantification of CPU Utilisation
- h<sub>&theta;</sub>(x) = &theta;<sub>o</sub> x + &theta;<sub>1</sub>x
+
 <center>
 
 | Tasks          | Execution Time, T<sub>i | Initiation Interval, τ<sub>i | [τ<sub>n</sub> / τ<sub>i</sub> ] * T<sub>i | T<sub>i</sub>  / τ<sub>i</sub>  |
