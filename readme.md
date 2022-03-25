@@ -94,8 +94,6 @@ To conclude, the results is sensible where SampleISR takes up more CPU resources
 
 ## 1.4. Shared Data Structures and Methods for Safe Access & Synchronisation
 --------------------------------------
-We defined various global variables and used many methods to guarantee safe access and syn- chronization. Volatile arrays (such as the keyArray, globalkeyArray and serialkeyArray) that are shared by multiple threads are protected using mutexs; volatile integers and other smaller types (such as the knob rotation counter, status indicator and etc.) are protected using atomic stores and loads; dynamic objects (such as the knob decoder class) are protected by enforcing into reentrant member functions. Information that are passed between tasks are guarded by queues.
-For examplem the Table below shows the number of shared data structures in each task. Sam- pleISR only reads the data and as an interrupt it cannot be interrupted by anything else; therefore, no methods are applied. Data structures like globalkeypressed[12] which indicate the key-press sta- tus for each key (for polyphony purposes) are guarded by mutex since they can be accessed by both ScankeyTask and DisplayTask. As another example, knob0_pressed, which is a bool vari- able indicating whether knob0 has been pushed, is guarded by using atomic loads and stores in Playmusic and ScanKeyTask.
 
 <center>
 
