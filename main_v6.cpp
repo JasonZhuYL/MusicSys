@@ -347,27 +347,32 @@ int noteDemux(int note)
     }
 }
 
-// void play_Twinkle_star(){
-//     uint8_t twinkleStar[] = {1, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1, 8, 8, 6, 6, 5, 5, 3, 8, 8, 6, 6, 5, 5, 3, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1};
-//     keypressed_pointer=1;
-//     for (int i = 0; i < 43; i++)
-//     {
-//         if ((i + 1) % 7 == 0)
-//         {
-//             __atomic_store_n(&currentStepSize[0], stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
-//             delayMicroseconds(200000);
-//             __atomic_store_n(&currentStepSize[0], 0, __ATOMIC_RELAXED);
-//             delayMicroseconds(150000);
-//         }
-//         else
-//         {
-//             __atomic_store_n(&currentStepSize[0], stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
-//             delayMicroseconds(200000);
-//             __atomic_store_n(&currentStepSize[0], 0, __ATOMIC_RELAXED);
-//             delayMicroseconds(100000);
-//         }
-//     }
-// }
+void play_Twinkle_star(){
+    const TickType_t xFrequency = 1/portTICK_PERIOD_MS;
+    TickType_t xLastWakeTime = xTaskGetTickCount();
+    uint8_t twinkleStar[] = {1, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1, 8, 8, 6, 6, 5, 5, 3, 8, 8, 6, 6, 5, 5, 3, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1};
+    keypressed_pointer=1;
+    while(1){
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
+        for (int i = 0; i < 43; i++)
+        {
+            if ((i + 1) % 7 == 0)
+            {
+                __atomic_store_n(&currentStepSize[0], stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
+                delayMicroseconds(200000);
+                __atomic_store_n(&currentStepSize[0], 0, __ATOMIC_RELAXED);
+                delayMicroseconds(150000);
+            }
+            else
+            {
+                __atomic_store_n(&currentStepSize[0], stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
+                delayMicroseconds(200000);
+                __atomic_store_n(&currentStepSize[0], 0, __ATOMIC_RELAXED);
+                delayMicroseconds(100000);
+            }
+        }
+    }
+}
 
 // void play_music(void *pvParameters)
 // {
@@ -833,15 +838,15 @@ void setup()
         3,
         &canTxTaskHanle);
 
-    // TaskHandle_t playMusicHandle = NULL;
-    // xTaskCreate(
-    //     play_music,
-    //     "playMusic",
-    //     64,
-    //     NULL,
-    //     1,
-    //     &playMusicHandle
-    // );
+    TaskHandle_t playMusicHandle = NULL;
+    xTaskCreate(
+        play_music,
+        "playMusic",
+        64,
+        NULL,
+        1,
+        &playMusicHandle
+    );
 
     keyArrayMutex = xSemaphoreCreateMutex();
 

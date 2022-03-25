@@ -259,6 +259,8 @@ void sampleISR()
 ```
 </details>
 
+<br />
+
 ## 2.7 Pre-Programmed Music 
 --------------------------------------
 
