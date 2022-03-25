@@ -1,23 +1,19 @@
 # 1. Embedded System Coursework 2 - Group Hex Future
-
-
-
 - [1. Embedded System Coursework 2 - Group Hex Future](#1-embedded-system-coursework-2---group-hex-future)
   - [## 1.1. Core Functionality and Specifications](#-11-core-functionality-and-specifications)
   - [## 1.2. Identification and Summarisation of Tasks](#-12-identification-and-summarisation-of-tasks)
   - [## 1.3. Critical Time Analysis with Initiation Intervals and Execution Time with Quantification of CPU Utilisation](#-13-critical-time-analysis-with-initiation-intervals-and-execution-time-with-quantification-of-cpu-utilisation)
   - [## 1.4. Shared Data Structures and Methods for Safe Access & Synchronisation](#-14-shared-data-structures-and-methods-for-safe-access--synchronisation)
-  - [## 1.5 Analysis of inter-task blocking dependencies](#-15-analysis-of-inter-task-blocking-dependencies)
-- [Advanced Features](#advanced-features)
-  - [## 2.1 Low & High Pass Filter](#-21-low--high-pass-filter)
-  - [## 2.2 Reverb](#-22-reverb)
-  - [## 2.3 Polyphony with Stereo Sound](#-23-polyphony-with-stereo-sound)
-  - [## 2.4 Keyboard Auto-Detect through Handshake Signals](#-24-keyboard-auto-detect-through-handshake-signals)
-  - [## 2.5 CAN Communication Messages](#-25-can-communication-messages)
-  - [## 2.6 Intuitive Distributed User Interface](#-26-intuitive-distributed-user-interface)
-  - [## 2.6 Waveform Selection](#-26-waveform-selection)
-  - [## 2.7 Pre-Programmed Music](#-27-pre-programmed-music)
-  - [## 3. Appreciation & Reflection](#-3-appreciation--reflection)
+  - [## 1.5. 1.5 Analysis of inter-task blocking dependencies](#-15-15-analysis-of-inter-task-blocking-dependencies)
+- [2. Advanced Features](#2-advanced-features)
+  - [## 2.1. Low & High Pass Filter](#-21-low--high-pass-filter)
+  - [## 2.2. Reverb](#-22-reverb)
+  - [## 2.3. Polyphony with Stereo Sound](#-23-polyphony-with-stereo-sound)
+  - [## 2.4. Keyboard Auto-Detect through Handshake Signals](#-24-keyboard-auto-detect-through-handshake-signals)
+  - [## 2.5. CAN Communication Messages](#-25-can-communication-messages)
+  - [## 2.6. Intuitive Distributed User Interface](#-26-intuitive-distributed-user-interface)
+  - [## 2.7. Waveform Selection](#-27-waveform-selection)
+  - [## 2.8. Pre-Programmed Music](#-28-pre-programmed-music)
 
 ## 1.1. Core Functionality and Specifications
 --------------------------------------
@@ -94,16 +90,20 @@ To conclude, the results is sensible where SampleISR takes up more CPU resources
 
 ## 1.4. Shared Data Structures and Methods for Safe Access & Synchronisation
 --------------------------------------
+Shared data structures and methods for safe access and synchronisation is a very important part of real-time programming, as some global variable can be accessed by multiple threads. Mutex and atomic processes are used to protect the global variables when reading/ writing. Also, where possible, we create a local copy of the global variable.
 
+If a globle variable is not protected while being written, another thread can read the variable and get a wrong value. By using mutex and atomic processes for shared data structures and methods, we ensure safe access & synchronisation. For example, the reverb_switch variable is written using atomic_store in ScanKeysTask. And it is read using atomic_load in SampleISR to create a local copy.
+
+The table below summarises the number of shared data structure and the methods of safe guards.
 <center>
 
-| Tasks          | Number of Shared Data Structure | Usage | Methods of Safe Guard |
-| :------------- | :-----------------------------: | :---: | :-------------------: |
-| SampleISR      |                                 |       |                       |
-| CAN_DecodeTask |                                 |       |                       |
-| CAN_TxTask     |                                 |       |                       |
-| DisplayTask    |                                 |       |                       |
-| ScanKeysTask   |                                 |       |                       |
+| Tasks          | Number of Shared Data Structure |    Usage     |
+| :------------- | :-----------------------------: | :----------: |
+| SampleISR      |               10                |     Read     |
+| CAN_DecodeTask |                8                | Read & Write |  
+| CAN_TxTask     |                6                |   Read           |  
+| DisplayTask    |               10                |     Read     |  
+| ScanKeysTask   |               12                | Read & Write |
 
 Table 3: Summary of Shared Data Structure and Methods of Safe Guard
 
@@ -111,7 +111,7 @@ Table 3: Summary of Shared Data Structure and Methods of Safe Guard
 
 <br />
 
-## 1.5 Analysis of inter-task blocking dependencies
+## 1.5. 1.5 Analysis of inter-task blocking dependencies
 --------------------------------------
 
 We use mutex and atomic processes to prevent the global variables being accessed by other tasks when read/ writen by a task. Dependencies are anything that can cause a task to block. Inter-task blocking dependencies happen when a thread need to read or write a global variable that is also accessed by another thread. Therefore, we need to consider the dependencies of all tasks and ensure that there's no cycles in the dependency graph, which can lead to deadlock.
@@ -124,10 +124,10 @@ We do not have the risk of deadlock because our dependency graph does not have 1
 
 ![alt text](Slide1.png)
 
-# Advanced Features
+# 2. Advanced Features
 
 
-## 2.1 Low & High Pass Filter
+## 2.1. Low & High Pass Filter
 --------------------------------------
 To enable music note manipulation, Low Pass and High Pass Filtering of music signal are implemented. 
 
@@ -164,7 +164,7 @@ const uint8_t hpf[10][12] = {
 ```
 
 
-## 2.2 Reverb
+## 2.2. Reverb
 --------------------------------------
 
 Reverb is the effect where a sound seems to be produced in a room. Reverb is created using an array of size 51 to store previous Vout values. By replaying 3 elements of the array at different volume with the current Vout value, we can emulate the sound reflection in a room.
@@ -184,17 +184,17 @@ if(reverb_switch == 1){
 The part of code is implemented within **SampleISR()** function and is adapted for different waveforms such as SawTooth, Triangular and Square.
 
 
-## 2.3 Polyphony with Stereo Sound
+## 2.3. Polyphony with Stereo Sound
 --------------------------------------
 Polyphony, in music, is the simultaneous combination of two or more tones. In our music synthesiser, the sound of music notes will be produced respectively by the speakers of corresponding board where the keys are pressed. This enables polyphony with Stereo Sound where combination of music notes are much more similar to real piano.
 
 Clipping of speaker is avoided using Stereo Sound system. Having notes played from different speakers allows a larger number of notes to be played at the same time without clipping. 
 
-## 2.4 Keyboard Auto-Detect through Handshake Signals
+## 2.4. Keyboard Auto-Detect through Handshake Signals
 --------------------------------------
 When west detect or east detect bit changed, the board would notice that the overall board arrangement has changed. The board on the left will always initiate a handshake. For example, 1 board extens to 2, the board on the left would initiate the handshake. 2 boards extends to 3 boards, the second board would initiate the handshake to inform others its existance. Since the left board always initiate the handshake, only the board on the right would accept this message. This is done by assigning the second bit in the handshake message as the boards' position (range from 1 to 3). After handshake, each board would know its accurate position in the overall board arrangement. 
 
-## 2.5 CAN Communication Messages
+## 2.5. CAN Communication Messages
 --------------------------------------
 1. Handshake 
     The main purpose of handshake is to inform others its location, octave, and volume 
@@ -220,13 +220,13 @@ How values of different functionalities are transmitted? \
 How are notes, octave transmitted. 
 
 
-## 2.6 Intuitive Distributed User Interface
+## 2.6. Intuitive Distributed User Interface
 --------------------------------------
 When multiple boards are connected together, the left-most module becomes the main display, showing whether certain functionalities are on or off. When two boards are connected, the second board from the left recieves all the pressed notes information from the other board(s). The seoncd board module from the left becomes the secondary display, showing all notes played on all modules at their respective octaves. If all three modules are connnected, the right-most module's display is not used. 
 
 Via CAN bus, when the knobs are pressed or rotated on the left-most board. Functionalities like reverb can be turned on or off. Also, the volume or the octave can be changes on the main board. The information will be trainsmitted to the other boards via CAN messages. Therefore, the settings of all three modules can be changed on a single board.
 
-## 2.6 Waveform Selection
+## 2.7. Waveform Selection
 --------------------------------------
 
 Waveforms such as Square and Triangle waves are implemented in addition to Sawtooth wave. All of these waves are defined by mathematical function that is written in code.
@@ -362,7 +362,7 @@ void sampleISR()
 
 <br />
 
-## 2.7 Pre-Programmed Music 
+## 2.8. Pre-Programmed Music 
 --------------------------------------
 
 Twinkle Twinkle Little Star are programmed into Knob 3 where play music functionality is a thread by itself.
@@ -371,8 +371,4 @@ Twinkle Twinkle Little Star are programmed into Knob 3 where play music function
 **Pressing of Knob 3**: To play Twinkle Twinkle Little Star
 
 
-
-
-## 3. Appreciation & Reflection
---------------------------------------
 
