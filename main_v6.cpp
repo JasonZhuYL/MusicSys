@@ -33,29 +33,21 @@ const uint8_t hpf[10][12] = {
 
 
 const uint32_t interval = 100; // Display update interval
-volatile String currentNote;
-volatile uint8_t noteIndex;
 volatile uint8_t keypressed[] = {0,0,0,0,0,0,0,0,0,0,0,0};
 volatile uint32_t currentStepSize[] = {0,0,0,0,0,0,0,0,0,0,0,0};
 volatile uint8_t keypressed_pointer = 0;
-uint8_t volume = 12; // range from 0 to 16
-uint8_t octave = 4;  // range from 0 to 16
+volatile uint8_t volume = 12; // range from 0 to 16
+volatile uint8_t octave = 4;  // range from 0 to 16
+volatile uint8_t waveform_mode = 0;
+volatile uint8_t reverb_switch = 0;
+volatile uint8_t board_location = 1;
 uint8_t var0 = 0;
-uint8_t waveform_mode = 0;
-uint8_t reverb_switch = 0;
 
-//Previous values 
-uint8_t waveform_mode_pre = 0;
-uint8_t volume_pre = 12; // range from 0 to 16
-uint8_t octave_pre = 4;  // range from 0 to 16
-uint8_t pos_raw_pre=3;
-uint8_t keypressed_pointer_pre = 12;
-uint16_t keysBytes_Pre = 0xFFFF;
-uint16_t keysBytes_B1 = 0xFFFF;
-uint16_t keysBytes_B3 = 0xFFFF;
+volatile uint16_t keysBytes_Pre = 0xFFFF;
+volatile uint16_t keysBytes_B1 = 0xFFFF;
+volatile uint16_t keysBytes_B3 = 0xFFFF;
 
 
-uint8_t board_location = 1;
 bool lpf_enable = false;
 bool hpf_enable = false;
 const int32_t stepSizes[] = {262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494, 0};
@@ -74,7 +66,7 @@ volatile static bool knob2_pressed = false;
 
 // Initialize knob decoder 
 knob_decoder* Decoder3 = new knob_decoder(12,16,0);
-knob_decoder* Decoder2 = new knob_decoder(4,12,0);
+knob_decoder* Decoder2 = new knob_decoder(4,11,0);
 knob_decoder* Decoder1 = new knob_decoder(0,2,0);
 knob_decoder* Decoder0 = new knob_decoder(0,9,0);
 
@@ -114,7 +106,6 @@ static int32_t phaseAcc2[] = {0,0,0,0,0,0,0,0,0,0,0,0};
 static int32_t phaseAcc3 = 0;
 static int32_t VoutReverb[51] = {0};
 
-volatile uint8_t keyArray[7];
 SemaphoreHandle_t keyArrayMutex;
 
 // CAN part init
@@ -348,41 +339,38 @@ int noteDemux(int note)
 }
 
 void play_Twinkle_star(){
-    const TickType_t xFrequency = 1/portTICK_PERIOD_MS;
-    TickType_t xLastWakeTime = xTaskGetTickCount();
     uint8_t twinkleStar[] = {1, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1, 8, 8, 6, 6, 5, 5, 3, 8, 8, 6, 6, 5, 5, 3, 1, 1, 8, 8, 10, 10, 8, 6, 6, 5, 5, 3, 3, 1};
     keypressed_pointer=1;
-    while(1){
-        vTaskDelayUntil(&xLastWakeTime, xFrequency);
-        for (int i = 0; i < 43; i++)
+    // octave =0;
+    for (int i = 0; i < 43; i++)
+    {
+        if ((i + 1) % 7 == 0)
         {
-            if ((i + 1) % 7 == 0)
-            {
-                __atomic_store_n(&currentStepSize[0], stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
-                delayMicroseconds(200000);
-                __atomic_store_n(&currentStepSize[0], 0, __ATOMIC_RELAXED);
-                delayMicroseconds(150000);
-            }
-            else
-            {
-                __atomic_store_n(&currentStepSize[0], stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
-                delayMicroseconds(200000);
-                __atomic_store_n(&currentStepSize[0], 0, __ATOMIC_RELAXED);
-                delayMicroseconds(100000);
-            }
+            __atomic_store_n(&currentStepSize[0], stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
+            delayMicroseconds(450000);
+            __atomic_store_n(&currentStepSize[0], 0, __ATOMIC_RELAXED);
+            delayMicroseconds(150000);
+        }
+        else
+        {
+            __atomic_store_n(&currentStepSize[0], stepSizes[twinkleStar[i]], __ATOMIC_RELAXED);
+            delayMicroseconds(200000);
+            __atomic_store_n(&currentStepSize[0], 0, __ATOMIC_RELAXED);
+            delayMicroseconds(100000);
         }
     }
+
 }
 
-// void play_music(void *pvParameters)
+// void playMusic(void *pvParameters)
 // {
 //     const TickType_t xFrequency = 1 / portTICK_PERIOD_MS;
 //     TickType_t xLastWakeTime = xTaskGetTickCount();
-    
 //     while(1){
 //         vTaskDelayUntil(&xLastWakeTime, xFrequency);
 //         if(__atomic_load_n(&knob2_pressed, __ATOMIC_RELAXED) == true){
 //             play_Twinkle_star();
+            
 //         }
 //     }
 // }
@@ -446,8 +434,14 @@ void scanKeysTask(void *pvParameters)
     TickType_t xLastWakeTime = xTaskGetTickCount();
     uint16_t keysBytes = 0;
     uint16_t keysBytes_Changed;
-
-
+    uint8_t keyArray[7];
+    //Previous values 
+    uint8_t waveform_mode_pre = 0;
+    uint8_t volume_pre = 12; // range from 0 to 16
+    uint8_t octave_pre = 4;  // range from 0 to 16
+    uint8_t pos_raw_pre=3;
+    uint8_t keypressed_pointer_pre = 12;
+    uint8_t num_keypressed=0;
 
     while (1)
     {
@@ -461,38 +455,31 @@ void scanKeysTask(void *pvParameters)
             // xSemaphoreGive(keyArrayMutex);
         }
         // xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
-
         keysBytes = (keyArray[2] << 8) | (keyArray[1] << 4) | keyArray[0];
         // ^ is the XOR operator
-        // if (keysBytes == 0x0FFF)
-        // {
-        //     // nothing is pressed
-        //     keysBytes_Pre = 0x0FFF;
-        //     keypressed_pointer = 0;
-        // }
-        // else
-        // {
-            // By the XOR opeartion we can see the notes that are changed
-            keysBytes_Changed = keysBytes ^ keysBytes_Pre;
-            if ((keysBytes_Changed) == 0){
-                // if nothing change we do nothing
-            }
-            else{
-                // keyboard changed
-                // We scan the key to update the key pressed 
-                keypressed_pointer = 0;
-                for (uint8_t i = 0; i<12; i++){
-                    if(bitRead(keysBytes,i)==0){
-                        keypressed[keypressed_pointer] = i;
-                        keypressed_pointer += 1;
-                    }
-                }
-                keysBytes_Pre = keysBytes;
-                if(board_location!=2){
-                    sendNotes();
+        // By the XOR opeartion we can see the notes that are changed
+        keysBytes_Changed = keysBytes ^ keysBytes_Pre;
+        if ((keysBytes_Changed) == 0){
+            // if nothing change we do nothing
+        }
+        else{
+            // keyboard changed
+            // We scan the key to update the key pressed 
+            num_keypressed = 0;
+            for (uint8_t i = 0; i<12; i++){
+                if(bitRead(keysBytes,i)==0){
+                    keypressed[keypressed_pointer] = i;
+                    
+                    num_keypressed += 1;
                 }
             }
-        // }
+            __atomic_store_n(&keypressed_pointer,num_keypressed , __ATOMIC_RELAXED);
+
+            keysBytes_Pre = keysBytes;
+            if(board_location!=2){
+                sendNotes();
+            }
+        }
         if(keypressed_pointer >0){
             for(uint8_t i=0;i<keypressed_pointer;i++){
                 if (octave<4){
@@ -507,9 +494,9 @@ void scanKeysTask(void *pvParameters)
         Decoder2->update((keyArray[3] & 0b00001100) >> 2);
         Decoder1->update( keyArray[4] & 0b00000011);
         Decoder0->update((keyArray[4] & 0b00001100) >> 2);
-        volume = Decoder3->get_val();
-        octave = Decoder2->get_val();
-        waveform_mode = Decoder1->get_val();
+        __atomic_store_n(&volume, Decoder3->get_val(), __ATOMIC_RELAXED);
+        __atomic_store_n(&octave, Decoder2->get_val(), __ATOMIC_RELAXED);
+        __atomic_store_n(&waveform_mode, Decoder1->get_val(), __ATOMIC_RELAXED);
         var0 = Decoder0->get_val();
 
         //Update the volume and ocatve to subs 
@@ -521,26 +508,21 @@ void scanKeysTask(void *pvParameters)
         }
         
         // Handling the knob press
-
-        // keys56 = ((keyArray[5] & 0b00001111)<<4)|(keyArray[6] & 0b00001011);
-        // if(keys56 == keys56_pre){}else{
         if ((keyArray[5] & 0b00000001) == 0){
-            // knob3 pressed
+            // knob2 pressed
             if(board_location==1){
-                // play_twinkle_star();
+                play_Twinkle_star();
             }
         }
         else if ((keyArray[5] & 0b00000010) == 0){
-            // knob2 pressed
+            // knob3 pressed
             // play_Twinkle_star();
-            __atomic_store_n(&knob2_pressed, true, __ATOMIC_RELAXED);
         }
         else if ((keyArray[6] & 0b00000010) == 0){
             // knob1 pressed
         }
         else if ((keyArray[6] & 0b00000001) == 0)
         {
-            
             // Serial.print("knob 0 pressed");
             if(filter_mode == 0){
                 Serial.println("lpf_enabled");
@@ -563,9 +545,9 @@ void scanKeysTask(void *pvParameters)
         {
             // joystick pressed
             if(reverb_switch == 0){
-                reverb_switch = 1;
+                __atomic_store_n(&reverb_switch, 1, __ATOMIC_RELAXED);
             }else{
-                reverb_switch = 0;
+                __atomic_store_n(&reverb_switch, 0, __ATOMIC_RELAXED);
             }
             configVO();
         }
@@ -573,9 +555,9 @@ void scanKeysTask(void *pvParameters)
         //Updating position of the board 
         if(pos_raw != pos_raw_pre){
             if(pos_raw==3){
-                board_location = 1;
+                __atomic_store_n(&board_location, 1, __ATOMIC_RELAXED);
             }else if(pos_raw==2){
-                board_location = 1;
+                __atomic_store_n(&board_location, 1, __ATOMIC_RELAXED);
                 // The left most board
                 handshake();
             }else if(pos_raw==1){
@@ -583,20 +565,16 @@ void scanKeysTask(void *pvParameters)
                 //Don't need to shake others 
                 //because if 2 board exist, the master will shake
                 //if 3 board exist, the middle will shake
-                board_location = 2;
+                __atomic_store_n(&board_location, 2, __ATOMIC_RELAXED);
             }else if(pos_raw==0){
                 //This board just become middle
                 //The middle board, should let 
                 //other board know its existance
-                board_location = 2;
+                __atomic_store_n(&board_location, 2, __ATOMIC_RELAXED);
                 handshake();
             }
             pos_raw_pre = pos_raw;
-        }
-        // keys56 = keys56_pre;
-        // Serial.println(keys56);
-        // Serial.println(keys56_pre);
-        
+        }        
     }
 }
 
@@ -619,21 +597,11 @@ void displayUpdateTask(void *pvParameters)
             u8g2.drawStr(65, 10, "OCT:");
             u8g2.setCursor(95, 10);
             u8g2.print(octave, DEC);
-            
-            //u8g2.setCursor(110, 30);
-            //u8g2.print(keypressed[0], DEC);
 
             // Second line in display;
             u8g2.setCursor(2, 30);
-            // for (uint8_t i = 0; i < keypressed_pointer; i++)
-            // {
-            //     // xSemaphoreTake(keyArrayMutex, portMAX_DELAY);
-            //     u8g2.drawStr(2, 30, (note[i]).c_str()); // write something to the internal memory
-            //     // xSemaphoreGive(keyArrayMutex);
-            // }
             u8g2.drawStr(2, 20, reverb_display[reverb_switch].c_str());
 
-        
             // Third line in display
             u8g2.drawStr(2, 30, Filter_display[filter_mode].c_str());
             u8g2.setCursor(30, 30);
@@ -649,19 +617,19 @@ void displayUpdateTask(void *pvParameters)
             u8g2.print("OCT");
             u8g2.setCursor(20, 10);
             u8g2.print(octave-1, DEC);
-            u8g2.setCursor(25, 10);
+            u8g2.setCursor(34, 10);
             u8g2.print(":");
             u8g2.setCursor(2, 20);
             u8g2.print("OCT");
             u8g2.setCursor(20, 20);
             u8g2.print(octave, DEC);
-            u8g2.setCursor(25, 20);
+            u8g2.setCursor(34, 20);
             u8g2.print(":");
             u8g2.setCursor(2, 30);
             u8g2.print("OCT");
             u8g2.setCursor(20, 30);
             u8g2.print(octave+1, DEC);
-            u8g2.setCursor(25, 30);
+            u8g2.setCursor(34, 30);
             u8g2.print(":");
             uint8_t indent1=0;
             uint8_t indent2=0;
@@ -669,15 +637,15 @@ void displayUpdateTask(void *pvParameters)
             for (uint8_t i = 0; i < 12; i++)
                 {
                     if(bitRead(keysBytes_B1,i) == 0){
-                        u8g2.drawStr(32+indent1, 10, (note[i]).c_str()); // notes of left-most board
+                        u8g2.drawStr(42+indent1, 10, (note[i]).c_str()); // notes of left-most board
                         indent1+=12;
                     }
                     if(bitRead(keysBytes_Pre,i) == 0){
-                        u8g2.drawStr(32+indent2, 20, (note[i]).c_str()); // notes of second board from left
+                        u8g2.drawStr(42+indent2, 20, (note[i]).c_str()); // notes of second board from left
                         indent2+=12;
                     }
                     if(bitRead(keysBytes_B3,i) == 0){
-                        u8g2.drawStr(32+indent3, 30, (note[i]).c_str()); // notes of third board from left
+                        u8g2.drawStr(42+indent3, 30, (note[i]).c_str()); // notes of third board from left
                         indent3+=12;
                     }
                 }
@@ -703,9 +671,12 @@ void CAN_RX_ISR(void)
 
 void canDecodeTask(void *pvParameters)
 {
+    const TickType_t xFrequency = 25/portTICK_PERIOD_MS;
+    TickType_t xLastWakeTime = xTaskGetTickCount();   
     char inMsg[8];
     while (1)
     {
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
         xQueueReceive(msgInQ, inMsg, portMAX_DELAY);
         //Serial.println(inMsg);
         if (inMsg[0] == 'P')
@@ -750,9 +721,12 @@ void canDecodeTask(void *pvParameters)
 
 void canTxTask(void *pvParameters)
 {
+    const TickType_t xFrequency = 30/portTICK_PERIOD_MS;
+    TickType_t xLastWakeTime = xTaskGetTickCount();
     uint8_t msgOut[8];
     while (1)
     {
+        vTaskDelayUntil(&xLastWakeTime, xFrequency);
         xQueueReceive(msgOutQ, msgOut, portMAX_DELAY);
         xSemaphoreTake(CAN_TX_Semaphore, portMAX_DELAY);
         CAN_TX(0x123, msgOut);
@@ -801,14 +775,14 @@ void setup()
     sampleTimer->attachInterrupt(sampleISR);
     sampleTimer->resume();
 
-    // RTOS initialize thread
+    //RTOS initialize thread
     TaskHandle_t scanKeysHandle = NULL;
     xTaskCreate(
         scanKeysTask,   /* Function that implements the task */
         "scanKeys",     /* Text name for the task */
         64,             /* Stack size in words, not bytes */
         NULL,           /* Parameter passed into the task */
-        1,              /* Task priority */
+        4,              /* Task priority */
         &scanKeysHandle /* Pointer to store the task handle */
     );
     TaskHandle_t displayUpdateHandle = NULL;
@@ -817,7 +791,7 @@ void setup()
         "displayUpdate",
         256,
         NULL,
-        2,
+        3,
         &displayUpdateHandle);
 
     TaskHandle_t canDecodeTaskHanle = NULL;
@@ -826,7 +800,7 @@ void setup()
         "canDecode",
         64,
         NULL,
-        3,
+        1,
         &canDecodeTaskHanle);
 
     TaskHandle_t canTxTaskHanle = NULL;
@@ -835,18 +809,9 @@ void setup()
         "canTx",
         64,
         NULL,
-        3,
+        2,
         &canTxTaskHanle);
 
-    TaskHandle_t playMusicHandle = NULL;
-    xTaskCreate(
-        play_music,
-        "playMusic",
-        64,
-        NULL,
-        1,
-        &playMusicHandle
-    );
 
     keyArrayMutex = xSemaphoreCreateMutex();
 
