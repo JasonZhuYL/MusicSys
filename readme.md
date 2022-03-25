@@ -72,7 +72,7 @@ Table 1: Summary of Tasks with Types and Priority
  h<sub>&theta;</sub>(x) = &theta;<sub>o</sub> x + &theta;<sub>1</sub>x
 <center>
 
-| Tasks          | Execution Time, $T_i$ | Initiation Interval, $\tau_i$ | $[\frac{\tau_n}{\tau_i}]T_i$ | $[\frac{T_i}{\tau_i}]$ |
+| Tasks          | Execution Time, T<sub>i | Initiation Interval, τ<sub>i | $[\frac{\tau_n}{\tau_i}]T_i$ | $[\frac{T_i}{\tau_i}]$ |
 | :------------- | :-------------------: | :---------------------------: | :--------------------------: | :--------------------: |
 | SampleISR      |         13 μs         |           45.45 μs            |           28.6 ms            |         28.6%          |
 | CAN_DecodeTask |         16 μs         |             25 ms             |           0.064 ms           |         0.064%         |
